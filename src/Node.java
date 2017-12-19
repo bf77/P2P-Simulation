@@ -1,7 +1,7 @@
 public class Node(){
 
-    //Mbps
-    double bandwidth;
+    //The threshold of bandwidth
+    double tb;
     //The number of packet
     int cache;
  
