@@ -1,18 +1,19 @@
-public class Node(){
+import java.awt.Point;
 
-    //The threshold of bandwidth
-    double tb;
+public class Node{
+
+    //The threshold limit value of bandwidth
+    double BW_tlv;
     //The number of packet
-    int cache;
- 
+    int cache; 
     //x y on the figure
-    Point point;
+    Point pos;
     
-    Point parent_point;
+    Point parent_pos;
 
     int child_num;
 
-    Point[] child_points;
+    Point[] child_pos;
 
     double pre_depart_timestamp;
 
