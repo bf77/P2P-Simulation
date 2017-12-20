@@ -17,8 +17,10 @@ public class Node{
 
     double pre_depart_timestamp;
 
+    double timestamp_to_join;
+    
     //Timestamp to start participating
-    double timestamp;
+    double timestamp; 
 
     int layer;
 

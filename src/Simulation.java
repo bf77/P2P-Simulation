@@ -19,15 +19,27 @@ public class Simulation extends JPanel{
 
     int PAIRS_NUM = ( MAX_NODE * (MAX_NODE - 1) )/2;
 
-    //1~1000
+    //1~500 The Bound of the BW
     int BOUND = 499;
 
+    long TIMESTAMP = 0;
+    
     //Bandwidth
     double[] BW_PAIRS;
+
+    //Origin Source
+    OriginSrc OS;
+    
     //Node
     Node[] NODES;
 
     int MAX_CHILD = 20;
+
+    //The Bound of the time to join ( 0~10 min )
+    int BOUND_TIME_JOIN = 9;
+
+    //The
+    double DEPART_INTERVAL;
 
     public static void main(String[] args){
 
@@ -43,6 +55,21 @@ public class Simulation extends JPanel{
 
 	sim.nodesInitialize();
 	
+    }
+
+    public void osInitialize(){
+
+	//--Random--
+	Random rnd = new Random();
+	
+	OS = new OriginSrc();
+
+	OS.BW_tlv = rnd.nextDouble()*BOUND + 1;
+	System.out.println("Origin Source:TLV "+OS.BW_tlv);
+
+	OS.child_num = 0;
+	OS.c
+
     }
     
     public void nodesInitialize(){
@@ -67,6 +94,7 @@ public class Simulation extends JPanel{
 
 	//--Node--
 	NODES = new Node[MAX_NODE];
+
 	
 	for( int i=0 ; i<MAX_NODE ; i++ ){
 
@@ -76,12 +104,17 @@ public class Simulation extends JPanel{
 	    //1~500 Mbps
 	    NODES[i].BW_tlv =  rnd.nextDouble()*BOUND + 1;
 
+	    //1~10 min
+	    NODES[i].timestamp_to_join =  rnd.nextDouble()*BOUND_TIME_JOIN + 1;
+
 	    //Init value
 	    NODES[i].layer = 0;
        	    NODES[i].cache = 0;
-	    NODES[i].timestamp = 0;
 	    NODES[i].pre_depart_timestamp = 0;
 
+	    //Timestamp
+	    NODES[i].timestamp = TIMESTAMP;
+	    
 	    //The position
 	    NODES[i].pos = new Point(0,0);
 	    //The position of parent
@@ -90,13 +123,44 @@ public class Simulation extends JPanel{
 	    NODES[i].child_num = 0;
 	    //The position of children
 	    NODES[i].child_pos = new Point[MAX_CHILD];
-	    for( int j=0 ; j<MAX_CHILD ; j++ )
+	    for( int j=0 ; j< MAX_CHILD ; j++ )
 		NODES[i].child_pos[j] = new Point(0,0);
 
-	    System.out.println("Node "+i+":"+NODES[i].BW_tlv);
+	    System.out.print("Node "+i+":TLV "+NODES[i].BW_tlv);
+	    System.out.println(" Timestamp to join "+NODES[i].timestamp_to_join);
 
 	}
 	
+    }
+
+
+    public void timestampUpdate(){
+
+	TIMESTAMP = System.currentTimeMillis();
+	
+    }
+    
+    public void nodeParticipation(){
+
+	for( int i=0 ; i<MAX_NODE ; i++ ){
+
+	    if( TIMESTAMP < NODES[i].timestamp_to_join )
+		continue;
+
+	    
+	    
+	}
+
+    }
+
+    public void nodeStreaming(){
+
+
+    }
+
+    public void nodeReconnect(){
+
+
     }
     
     public void paintComponent(Graphics g){
