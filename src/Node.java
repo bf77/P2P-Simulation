@@ -1,19 +1,22 @@
-import java.awt.Point;
+import java.awt.geom.*;
+import java.util.ArrayList;
 
 public class Node{
 
     //The threshold limit value of bandwidth
     double BW_tlv;
+
     //The number of packet
     int cache; 
+
     //x y on the figure
-    Point pos;
-    
-    Point parent_pos;
+    Point2D.Double pos;
+
+    int parent_id;
 
     int child_num;
 
-    Point[] child_pos;
+    ArrayList<Integer> child_id;
 
     double pre_depart_timestamp;
 
