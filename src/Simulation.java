@@ -11,12 +11,12 @@ import java.util.ArrayList;
 
 public class Simulation extends JPanel{
 
-    int WIDTH = 1500;
+    int WIDTH = 1900;
     int HEIGHT = 800;
     float STROKE = 2.0f;
 
     int MAX_LAYER = 10;
-    int MAX_NODE = 510;
+    int MAX_NODE = 1022;
 
     int PAIRS_NUM = ( MAX_NODE * (MAX_NODE - 1) )/2;
 
@@ -46,6 +46,8 @@ public class Simulation extends JPanel{
 
     double DEPART_INTERVAL;
 
+    ArrayList<IntegerList> LAYER_LIST;
+
     public static void main(String[] args){
 
 	JFrame frame = new JFrame();
@@ -60,13 +62,9 @@ public class Simulation extends JPanel{
 	frame.setTitle("Simulation");
 	frame.setVisible(true);
 
-	ArrayList<IntegerList> layer_list = new ArrayList<IntegerList>(sim.MAX_LAYER);
-	sim.initArrayLL( layer_list , sim.MAX_LAYER );
+	sim.LAYER_LIST = new ArrayList<IntegerList>(sim.MAX_LAYER);
+	sim.initArrayLL( sim.LAYER_LIST , sim.MAX_LAYER );
 		    
-	System.out.println("aaaaa");
-	//nodeParticipation( layer_list );
-
-	//sim.TIMESTAMP = System.currentTimeMillis();
 	sim.osInitialize();
 	sim.nodesInitialize();
 	
@@ -74,7 +72,7 @@ public class Simulation extends JPanel{
 	while(true){
 	    
 	    start_time = System.currentTimeMillis();
-	    sim.nodeParticipation( layer_list );
+	    sim.nodeParticipation( sim.LAYER_LIST );
 	    try{
 		
 		Thread.sleep(1000);
@@ -258,7 +256,9 @@ public class Simulation extends JPanel{
 
     }
 
-    public void nodeStreaming(){
+    public void nodeStreaming( ArrayList<IntegerList> layer_list ){
+
+	
 
 
     }
@@ -272,6 +272,10 @@ public class Simulation extends JPanel{
     public void paintComponent(Graphics g){
 
 
+	super.paintComponent(g);
+
+	Random rnd = new Random();
+
 	Graphics2D g2 = (Graphics2D)g;
 
 	//Antialiasing
@@ -283,14 +287,50 @@ public class Simulation extends JPanel{
 
 	g2.setPaint(Color.BLUE);
 	Ellipse2D.Double origin_src = 
-	    new Ellipse2D.Double( 675.0d, 10.0d , 35.0d , 35.0d );
+	    new Ellipse2D.Double( 50.0d + (this.WIDTH - 150) / 2.0 , 10.0d , 35.0d , 35.0d );
 	g2.fill(origin_src);
 
-	g2.setPaint(Color.BLACK);
-	for( int i=0 ; i<MAX_LAYER ; i++ ){
+	OS.pos.setLocation( 50.0d + (this.WIDTH -150)/2.0 , 10.0d );
+	
+	for( int layer=0 ; layer<this.MAX_LAYER ; layer++ ){
 	    //g2.draw(new Line2D.Double( 50 ,70*(i+1) , this.WIDTH - 200 , 70*(i+1) ) );
-	    g2.drawString("--Layer "+i+"--", this.WIDTH - 150 , 70*(i+1) );
+	    g2.setPaint(Color.BLACK);
+	    g2.drawString("--Layer "+layer+"--", this.WIDTH - 150 , 70*(layer+1) );
+
+	    int node_num_onlayer = this.LAYER_LIST.get(layer).size();
+	    double width_onlayer = (this.WIDTH-150-50)*1.0 / (node_num_onlayer+1);
+
+	    for( int id_onlayer=0; id_onlayer<node_num_onlayer ; id_onlayer++ ){
+		
+		int id = this.LAYER_LIST.get(layer).get(id_onlayer);
+
+		g2.setPaint(new Color(rnd.nextInt()*10000000));
+
+		NODES[id].pos.setLocation( 50.0d + (id_onlayer+1)*width_onlayer , 70*(layer+1) );
+
+		int parent_id = NODES[id].parent_id;
+
+		if( parent_id == OS_ID ){
+
+		    g2.draw(new Line2D.Double( NODES[id].pos.getX() , NODES[id].pos.getY() , OS.pos.getX() , OS.pos.getY() ));
+
+		}else{
+
+		    g2.draw(new Line2D.Double( NODES[id].pos.getX() , NODES[id].pos.getY() , NODES[parent_id].pos.getX() , NODES[parent_id].pos.getY() ));
+		    
+		}		
+
+		Ellipse2D.Double node = 
+		    new Ellipse2D.Double( NODES[id].pos.getX() , NODES[id].pos.getY() , 5.0d , 5.0d );
+
+		g2.fill(node);
+
+	    }
+	    
 	}
+
+	
+
     }
 
 }
