@@ -11,19 +11,23 @@ import java.util.ArrayList;
 
 public class Simulation extends JPanel{
 
-    int WIDTH = 1900;
-    int HEIGHT = 800;
-    float STROKE = 2.0f;
+    static final int WIDTH = 1900;
+    static final int HEIGHT = 800;
+    static final float STROKE = 2.0f;
 
-    int MAX_LAYER = 10;
-    int MAX_NODE = 1022;
+    static final int MAX_LAYER = 10;
+    static final int MAX_NODE = 1022;
 
-    int PAIRS_NUM = ( MAX_NODE * (MAX_NODE - 1) )/2;
+    static final int PAIRS_NUM = ( MAX_NODE * (MAX_NODE - 1) )/2;
 
     //1~500 The Bound of the BW
-    int BOUND = 499;
+    static final int BOUND = 499;
 
-    long TIMESTAMP = 0;
+    static final int MAX_PACKET_BYTE = 1500;
+
+    double TIMESTAMP = 0;
+
+    double PRE_TIMESTAMP;
     
     //Bandwidth
     double[] BW_PAIRS;
@@ -32,17 +36,25 @@ public class Simulation extends JPanel{
     OriginSrc OS;
 
     //ID of Origin Source
-    int OS_ID;
+    static final int OS_ID = MAX_NODE;
+
+    //for eclipse
+    static final double OS_R = 30.0d;
     
     //Node
     Node[] NODES;
 
-    //int MAX_CHILD = 20;
+    //for eclipse
+    static final double NODE_R = 5.0d;
 
-    int TMP_MAX_CHILD = 2;
+    static final int TMP_MAX_CHILD = 2;
+
+    static final double CACHE_TLV = MAX_PACKET_BYTE * 1000;
+
+    static final double DEFAULT_CACHE_TLV = MAX_PACKET_BYTE * 1000;
 
     //The Bound of the time to join ( 0~10 min )
-    int BOUND_TIME_JOIN = 1;
+    static final int BOUND_TIME_JOIN = 1;
 
     double DEPART_INTERVAL;
 
@@ -140,12 +152,16 @@ public class Simulation extends JPanel{
 	    //0~x min
 	    NODES[i].timestamp_to_join = rnd.nextDouble()*BOUND_TIME_JOIN;
 
+	    //Color
+	    NODES[i].color = rnd.nextInt()*10000000;
+
 	    //Init value
 	    NODES[i].layer = 0;
        	    NODES[i].cache = 0;
 	    NODES[i].pre_depart_timestamp = 0;
 	    NODES[i].parent_id = -1;
 	    NODES[i].child_num = 0;
+	    NODES[i].is_begin_stream = false;
 
 	    //Timestamp
 	    NODES[i].timestamp = TIMESTAMP;
@@ -166,8 +182,10 @@ public class Simulation extends JPanel{
 
     public void timestampUpdate( long start ,long end ){
 
-	TIMESTAMP += (end - start)/1000;
+	PRE_TIMESTAMP = TIMESTAMP;
+	TIMESTAMP += (end - start)*1.0/1000;
        
+	System.out.println("Previous timestamp:"+PRE_TIMESTAMP+"s");
 	System.out.println("Timestamp:"+TIMESTAMP+"s");
 
     }
@@ -256,22 +274,42 @@ public class Simulation extends JPanel{
 
     }
 
-    public void nodeStreaming( ArrayList<IntegerList> layer_list ){
+    public void nodeStreaming( double sec ){
 
 	
 
 
     }
 
+    /*
     public void nodeReconnect(){
 
+	for( int layer=0; layer<MAX_LAYER ; layer++ ){
+
+	    int node_num_onlayer = LAYER_LIST.get(layer).size();
+		
+	    for( int id_onlayer=0 ; id_onlayer<node_num_onlayer ; id_onlayer++ ){
+
+		int id = LAYER_LIST.get(layer).get(id_onlayer);
+		if( !(NODES[id].is_begin_stream) )
+		    continue;
+		
+		if( NODES[id].cache < CACHE_TLV ){
+
+		    
+   
+		}
+
+	    }
+
+	}
 
     }
-    
+    */
     @Override
     public void paintComponent(Graphics g){
 
-
+	//Clear the window
 	super.paintComponent(g);
 
 	Random rnd = new Random();
@@ -286,13 +324,17 @@ public class Simulation extends JPanel{
 	g2.setStroke(stroke);
 
 	g2.setPaint(Color.BLUE);
-	Ellipse2D.Double origin_src = 
-	    new Ellipse2D.Double( 50.0d + (this.WIDTH - 150) / 2.0 , 10.0d , 35.0d , 35.0d );
-	g2.fill(origin_src);
 
-	OS.pos.setLocation( 50.0d + (this.WIDTH -150)/2.0 , 10.0d );
+	//Set the position of Origin Source
+	OS.pos.setLocation( 50.0d + (this.WIDTH -150)/2.0 , 30.0d );
+
+	Ellipse2D.Double origin_src = 
+	    new Ellipse2D.Double( this.OS.pos.getX() - (this.OS_R/2) , this.OS.pos.getY() - (this.OS_R/2), this.OS_R , this.OS_R );
+	g2.fill(origin_src);
+	
 	
 	for( int layer=0 ; layer<this.MAX_LAYER ; layer++ ){
+
 	    //g2.draw(new Line2D.Double( 50 ,70*(i+1) , this.WIDTH - 200 , 70*(i+1) ) );
 	    g2.setPaint(Color.BLACK);
 	    g2.drawString("--Layer "+layer+"--", this.WIDTH - 150 , 70*(layer+1) );
@@ -304,25 +346,24 @@ public class Simulation extends JPanel{
 		
 		int id = this.LAYER_LIST.get(layer).get(id_onlayer);
 
-		g2.setPaint(new Color(rnd.nextInt()*10000000));
+		g2.setPaint(new Color(NODES[id].color));
 
-		NODES[id].pos.setLocation( 50.0d + (id_onlayer+1)*width_onlayer , 70*(layer+1) );
+		this.NODES[id].pos.setLocation( 50.0d + (id_onlayer+1)*width_onlayer , 70*(layer+1) );
 
-		int parent_id = NODES[id].parent_id;
+		int parent_id = this.NODES[id].parent_id;
 
-		if( parent_id == OS_ID ){
+		if( parent_id == this.OS_ID ){
 
-		    g2.draw(new Line2D.Double( NODES[id].pos.getX() , NODES[id].pos.getY() , OS.pos.getX() , OS.pos.getY() ));
+		    g2.draw(new Line2D.Double( this.NODES[id].pos.getX() , this.NODES[id].pos.getY() , this.OS.pos.getX() , this.OS.pos.getY() ));
 
 		}else{
 
-		    g2.draw(new Line2D.Double( NODES[id].pos.getX() , NODES[id].pos.getY() , NODES[parent_id].pos.getX() , NODES[parent_id].pos.getY() ));
+		    g2.draw(new Line2D.Double( this.NODES[id].pos.getX() , this.NODES[id].pos.getY() , this.NODES[parent_id].pos.getX() , this.NODES[parent_id].pos.getY() ));
 		    
 		}		
 
 		Ellipse2D.Double node = 
-		    new Ellipse2D.Double( NODES[id].pos.getX() , NODES[id].pos.getY() , 5.0d , 5.0d );
-
+		    new Ellipse2D.Double( this.NODES[id].pos.getX() - (this.NODE_R/2), this.NODES[id].pos.getY() - (this.NODE_R/2), this.NODE_R , this.NODE_R );
 		g2.fill(node);
 
 	    }

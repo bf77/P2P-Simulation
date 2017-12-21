@@ -7,7 +7,7 @@ public class Node{
     double BW_tlv;
 
     //The number of packet
-    int cache; 
+    double cache; 
 
     //x y on the figure
     Point2D.Double pos;
@@ -26,5 +26,9 @@ public class Node{
     double timestamp; 
 
     int layer;
+
+    int color;
+
+    Boolean is_begin_stream;
 
 }
