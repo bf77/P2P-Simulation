@@ -29,6 +29,8 @@ public class Node{
 
     int color;
 
+    double delay;
+
     Boolean is_begin_stream;
 
 }

@@ -16,16 +16,20 @@ public class Simulation extends JPanel{
     static final float STROKE = 2.0f;
 
     static final int MAX_LAYER = 10;
+
     static final int MAX_NODE = 1022;
 
-    static final int PAIRS_NUM = ( MAX_NODE * (MAX_NODE - 1) )/2;
+    //Including Origin Source
+    static final int PAIRS_NUM = ( MAX_NODE * (MAX_NODE + 1) )/2;
 
-    //1~500 The Bound of the BW
-    static final int BOUND = 499;
+    //1~200 The Bound of the BW
+    static final int BOUND = 199;
 
     static final int MAX_PACKET_BYTE = 1500;
 
     long TIMESTAMP = 0;
+
+    long CURRENT_TIME = 0;
 
     long PRE_TIMESTAMP;
     
@@ -65,9 +69,7 @@ public class Simulation extends JPanel{
 	JFrame frame = new JFrame();
 
 	Simulation sim = new Simulation();
-	frame.getContentPane().add(sim);
-	
-	
+	frame.getContentPane().add(sim);	
 
 	frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	frame.setBounds(10, 10, sim.WIDTH , sim.HEIGHT );
@@ -80,14 +82,17 @@ public class Simulation extends JPanel{
 	sim.osInitialize();
 	sim.nodesInitialize();
 	
-	long start_time,end_time;
+	sim.TIMESTAMP = System.currentTimeMillis();
 	while(true){
 	    
-	    start_time = System.currentTimeMillis();
-	    sim.nodeParticipation( sim.LAYER_LIST );
+	    if( sim.PRE_TIMESTAMP != sim.TIMESTAMP ){
+		sim.nodeParticipation( sim.LAYER_LIST );
+		//sim.nodeStreaming( sim.TIMESTAMP - sim.PRE_TIMESTAMP );
+	    }
+
 	    sim.repaint();
-	    end_time = System.currentTimeMillis();
-	    sim.timestampUpdate(start_time,end_time);
+	    sim.timestampUpdate();
+
 	}
 
     }
@@ -117,11 +122,12 @@ public class Simulation extends JPanel{
 	//-Bandwidth between pairs--
 	BW_PAIRS = new double[PAIRS_NUM];
 
-	for( int i=0 ; i<(MAX_NODE-1) ; i++ ){
+	//Including Origin Source
+	for( int i=0 ; i<(MAX_NODE) ; i++ ){
 
-	    for( int j=(i+1) ; j<MAX_NODE ; j++ ){
+	    for( int j=(i+1) ; j<(MAX_NODE + 1) ; j++ ){
 		
-		//1~500 Mbps
+		//1~X Mbps
 		BW_PAIRS[i] = rnd.nextDouble()*BOUND + 1;
 		System.out.println("Pairs ["+i+","+j+"]:"+BW_PAIRS[i]);
 
@@ -152,6 +158,7 @@ public class Simulation extends JPanel{
 	    NODES[i].pre_depart_timestamp = 0;
 	    NODES[i].parent_id = -1;
 	    NODES[i].child_num = 0;
+	    NODES[i].delay = 0.0d;
 	    NODES[i].is_begin_stream = false;
 
 	    //Timestamp
@@ -171,14 +178,20 @@ public class Simulation extends JPanel{
     }
 
 
-    public void timestampUpdate( long start ,long end ){
+    public void timestampUpdate(){
 
 	PRE_TIMESTAMP = TIMESTAMP;
-	TIMESTAMP += end - start;
+	TIMESTAMP = System.currentTimeMillis(); 
+
+	//Timestamp have not been changed
+	if( PRE_TIMESTAMP == TIMESTAMP )
+	    return;
+
+	CURRENT_TIME += TIMESTAMP - PRE_TIMESTAMP; 
 	
-	System.out.println("start timestamp:"+start+"ms end timestamp:"+end);
-	System.out.println("Previous timestamp:"+PRE_TIMESTAMP*1.0/1000+"s");
-	System.out.println("Timestamp:"+TIMESTAMP*1.0/1000+"s");
+	System.out.println("Time:"+CURRENT_TIME+"ms "+CURRENT_TIME/1000+"s");
+	System.out.println("Timestamp:"+TIMESTAMP+"ms");
+	System.out.println("Previous timestamp:"+PRE_TIMESTAMP+"ms");
 
     }
 
@@ -196,7 +209,7 @@ public class Simulation extends JPanel{
 	for( int id=0 ; id<MAX_NODE ; id++ ){
 
 	    //Whether Nodes can join
-	    if( TIMESTAMP < (NODES[id].timestamp_to_join) )
+	    if( CURRENT_TIME < (NODES[id].timestamp_to_join) )
 		continue;
 
 	    //Whether there is a parent of the node
@@ -266,13 +279,46 @@ public class Simulation extends JPanel{
 
     }
 
-    public void nodeStreaming( double sec ){
+    /*
+    public void nodeCombinationValue( int n , int m ){
 
-	
+	if( n > m )
+
+	else
+
+	return ;
+    }
+    
+
+    public void nodeStreaming( long dt_ms ){
+
+	int r =  () / OS.BW_tlv;
+
+	for(int layer=0 ; layer<MAX_LAYER ; layer++ ){
+
+	    int node_num_onlayer = LAYER_LIST.get(layer).size();
+
+	    for( int id_onlayer=0 ; id_onlayer<node_num_onlayer ; i++ ){
+
+		int id = LAYER_LIST.get(layer).get(id_onlayer);
+		
+		if( NODES[id].parent_id == OS_ID ){
+		    
+		    
+
+		}else{
+
+		    
+
+		}
+
+	    }
+
+	}
 
 
     }
-
+    */
     /*
     public void nodeReconnect(){
 
@@ -298,6 +344,7 @@ public class Simulation extends JPanel{
 
     }
     */
+
     @Override
     public void paintComponent(Graphics g){
 
