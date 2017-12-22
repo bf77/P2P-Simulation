@@ -5,7 +5,7 @@ public class OriginSrc{
 
     double BW_tlv;
 
-    double timestamp;
+    long timestamp;
 
     int child_num;
 

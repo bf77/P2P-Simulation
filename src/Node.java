@@ -18,12 +18,12 @@ public class Node{
 
     ArrayList<Integer> child_id;
 
-    double pre_depart_timestamp;
+    long pre_depart_timestamp;
 
-    double timestamp_to_join;
+    long timestamp_to_join;
     
-    //Timestamp to start participating
-    double timestamp; 
+    //Timestamp to start participating ms
+    long timestamp; 
 
     int layer;
 

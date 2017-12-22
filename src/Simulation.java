@@ -25,9 +25,9 @@ public class Simulation extends JPanel{
 
     static final int MAX_PACKET_BYTE = 1500;
 
-    double TIMESTAMP = 0;
+    long TIMESTAMP = 0;
 
-    double PRE_TIMESTAMP;
+    long PRE_TIMESTAMP;
     
     //Bandwidth
     double[] BW_PAIRS;
@@ -54,7 +54,7 @@ public class Simulation extends JPanel{
     static final double DEFAULT_CACHE_TLV = MAX_PACKET_BYTE * 1000;
 
     //The Bound of the time to join ( 0~10 min )
-    static final int BOUND_TIME_JOIN = 1;
+    static final int BOUND_TIME_JOIN = 1000 * 60;
 
     double DEPART_INTERVAL;
 
@@ -85,18 +85,9 @@ public class Simulation extends JPanel{
 	    
 	    start_time = System.currentTimeMillis();
 	    sim.nodeParticipation( sim.LAYER_LIST );
-	    try{
-		
-		Thread.sleep(1000);
-
-		end_time = System.currentTimeMillis();
-		sim.timestampUpdate(start_time,end_time);
-	
-		sim.repaint();
-	
-	    }catch(InterruptedException e){}	    
-	    
-
+	    sim.repaint();
+	    end_time = System.currentTimeMillis();
+	    sim.timestampUpdate(start_time,end_time);
 	}
 
     }
@@ -150,7 +141,7 @@ public class Simulation extends JPanel{
 	    NODES[i].BW_tlv = rnd.nextDouble()*BOUND + 1;
 
 	    //0~x min
-	    NODES[i].timestamp_to_join = rnd.nextDouble()*BOUND_TIME_JOIN;
+	    NODES[i].timestamp_to_join = rnd.nextInt(BOUND_TIME_JOIN);
 
 	    //Color
 	    NODES[i].color = rnd.nextInt()*10000000;
@@ -183,10 +174,11 @@ public class Simulation extends JPanel{
     public void timestampUpdate( long start ,long end ){
 
 	PRE_TIMESTAMP = TIMESTAMP;
-	TIMESTAMP += (end - start)*1.0/1000;
-       
-	System.out.println("Previous timestamp:"+PRE_TIMESTAMP+"s");
-	System.out.println("Timestamp:"+TIMESTAMP+"s");
+	TIMESTAMP += end - start;
+	
+	System.out.println("start timestamp:"+start+"ms end timestamp:"+end);
+	System.out.println("Previous timestamp:"+PRE_TIMESTAMP*1.0/1000+"s");
+	System.out.println("Timestamp:"+TIMESTAMP*1.0/1000+"s");
 
     }
 
@@ -204,7 +196,7 @@ public class Simulation extends JPanel{
 	for( int id=0 ; id<MAX_NODE ; id++ ){
 
 	    //Whether Nodes can join
-	    if( TIMESTAMP < (NODES[id].timestamp_to_join*60) )
+	    if( TIMESTAMP < (NODES[id].timestamp_to_join) )
 		continue;
 
 	    //Whether there is a parent of the node
