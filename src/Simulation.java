@@ -77,7 +77,7 @@ public class Simulation extends JPanel{
 	frame.setVisible(true);
 
 	sim.LAYER_LIST = new ArrayList<IntegerList>(sim.MAX_LAYER);
-	sim.initArrayLL( sim.LAYER_LIST , sim.MAX_LAYER );
+	sim.initArrayLL( sim.LAYER_LIST , sim.MAX_LAYER+1 );
 		    
 	sim.osInitialize();
 	sim.nodesInitialize();
@@ -87,7 +87,8 @@ public class Simulation extends JPanel{
 	    
 	    if( sim.PRE_TIMESTAMP != sim.TIMESTAMP ){
 		sim.nodeParticipation( sim.LAYER_LIST );
-		//sim.nodeStreaming( sim.TIMESTAMP - sim.PRE_TIMESTAMP );
+		sim.nodeStreaming( sim.TIMESTAMP - sim.PRE_TIMESTAMP );
+		System.out.println( "Cache:" + sim.NODES[432].cache );
 	    }
 
 	    sim.repaint();
@@ -200,6 +201,9 @@ public class Simulation extends JPanel{
 	for( int i=0 ; i<length ; i++ )
 	    ll.add( new IntegerList() );
 
+	//layer 0
+	ll.get(0).add(OS_ID);
+
     }
     
     public void nodeParticipation( ArrayList<IntegerList> layer_list ){
@@ -209,116 +213,172 @@ public class Simulation extends JPanel{
 	for( int id=0 ; id<MAX_NODE ; id++ ){
 
 	    //Whether Nodes can join
-	    if( CURRENT_TIME < (NODES[id].timestamp_to_join) )
+	    if( CURRENT_TIME < NODES[id].timestamp_to_join )
 		continue;
-
+	    
 	    //Whether there is a parent of the node
 	    if( NODES[id].parent_id != -1 )
 		continue;
-
-	    //layer 1
-	    if( OS.child_num < TMP_MAX_CHILD ){
-
-		OS.child_num += 1;
-		OS.child_id.add(id);
-
-		NODES[id].parent_id = OS_ID;
-		NODES[id].layer = 1;
-
-		//Store node's id to the first layer
-		layer_list.get(0).add(id);
-
-		System.out.println("Node "+id+" on Layer 1");
-
-	    }//layer 2~10
-	    else{
-
-		Boolean is_has_partipated = false;
-
-		for( int layer=0 ; layer<MAX_LAYER ; layer++ ){
+	    
+	    Boolean is_has_partipated = false;
+	    for( int layer=0 ; layer<=MAX_LAYER ; layer++ ){
+		
+		//layer 1
+		if( layer==0 ){
 		    
-		    //The number of nodes on the layer
-		    int node_num_onlayer = layer_list.get(layer).size();
+		    if( OS.child_num < TMP_MAX_CHILD ){
 
-		    for( int id_onlayer=0 ; id_onlayer<node_num_onlayer ; id_onlayer++ ){
-
-			int parent_id = layer_list.get(layer).get(id_onlayer);
+			OS.child_num += 1;
+			OS.child_id.add(id);
 			
-			if( NODES[parent_id].child_num < TMP_MAX_CHILD ){
-			  
-			    //Processing to parent
-			    NODES[parent_id].child_num += 1;
-			    NODES[parent_id].child_id.add(id);
-			    
-			    //Processing to child
-			    NODES[id].parent_id = parent_id;
-			    NODES[id].layer = layer;
-			    
-			    //Regist id to layer_list
-			    layer_list.get(layer+1).add(id);
-			    
-			    //Print
-			    System.out.println("Node "+id+" on Layer "+(layer+2));
-			    is_has_partipated = true;
-			    break;
-
-			}
-	
-		    }//end one layer's for
-
-		    if( is_has_partipated )
+			NODES[id].parent_id = OS_ID;
+			NODES[id].layer = layer + 1;
+			
+			//Store node's id to the first layer
+			layer_list.get(layer+1).add(id);
+			
+			System.out.println("Node "+id+" on Layer "+ (layer+1));
 			break;
 
-		}//end layers' for
-
-	    }//end else
+		    }
+		    
+		}//layer 2~10
+		else{
+		    
+		    //The number of nodes on the layer
+			int node_num_onlayer = layer_list.get(layer).size();
+			
+			for( int id_onlayer=0 ; id_onlayer<node_num_onlayer ; id_onlayer++ ){
+			    
+			    int parent_id = layer_list.get(layer).get(id_onlayer);
+			    
+			    if( NODES[parent_id].child_num < TMP_MAX_CHILD ){
+				
+				//Processing to parent
+				NODES[parent_id].child_num += 1;
+				NODES[parent_id].child_id.add(id);
+				
+				//Processing to child
+				NODES[id].parent_id = parent_id;
+				NODES[id].layer = layer + 1;
+				
+				//Regist id to layer_list
+				layer_list.get(layer+1).add(id);
+				
+				//Print
+				System.out.println("Node "+id+" on Layer "+(layer+1));
+				is_has_partipated = true;
+				break;
+				
+			    }
+			    
+			}//end one layer's for
+			
+			if( is_has_partipated )
+			    break;
+			
+		}//end layer!=0 else
 		
+	    }//end layers' for
+	    	    
 	}//end all nodes for
-
+	
 	System.out.println("All nodes have participated...");
 
     }
 
-    /*
-    public void nodeCombinationValue( int n , int m ){
+    
+    public double nodeCombinationBW( int n , int m ){
 
-	if( n > m )
+	int ret = 0;
 
-	else
+	if( n < m ){
 
-	return ;
+	    for( int i=0 ; i<n ; i++ )
+		ret += ( MAX_NODE - i );
+
+	    ret += (m - n);
+	    
+	}   
+	else{
+	    
+	    for( int i=0 ; i<m ; i++ )
+		ret += ( MAX_NODE - i );
+
+	    ret += (n - m);
+
+	}
+
+	return BW_PAIRS[ret];
+
     }
     
 
     public void nodeStreaming( long dt_ms ){
-
-	int r =  () / OS.BW_tlv;
-
-	for(int layer=0 ; layer<MAX_LAYER ; layer++ ){
-
+		
+	for(int layer=0 ; layer<=MAX_LAYER ; layer++ ){
+	    
+	    double total_bw = 0.0d;
+	    double bw_ratio =  OS.BW_tlv / total_bw;
+	    ArrayList<Double> bw_parirs = new ArrayList<Double>();
 	    int node_num_onlayer = LAYER_LIST.get(layer).size();
 
-	    for( int id_onlayer=0 ; id_onlayer<node_num_onlayer ; i++ ){
+	    //-- Layer 0 (Origin Source) --
+	    if( layer==0 ){
+	
+		//The total capacity
 
-		int id = LAYER_LIST.get(layer).get(id_onlayer);
-		
-		if( NODES[id].parent_id == OS_ID ){
+		for( int i=0 ; i<OS.child_num ; i++ ){
 		    
+		    bw_parirs.add( nodeCombinationBW( OS.child_id.get(i) , OS_ID ) );
+		    total_bw += bw_parirs.get(i);
 		    
-
-		}else{
-
-		    
-
 		}
+		
+		//bw_ratio 0.0d ~ 1.0d
+		if( bw_ratio > 1.0d )bw_ratio = 1.0d;
+		
+		//Processing to calculate cache
+		for( int i=0 ; i<OS.child_num ; i++ ){
+		    
+		    NODES[ OS.child_id.get(i) ].cache += ( (bw_ratio*bw_parirs.get(i))*1000/8 ) * dt_ms;
+		    NODES[ OS.child_id.get(i) ].delay = ( (bw_ratio*bw_parirs.get(i))*1000 ) / (8*MAX_PACKET_BYTE);
+	    
+		}
+		
+	    }//-- Layer 1~X --
+	    else{
+		
+		for( int id_onlayer=0 ; id_onlayer<node_num_onlayer ; id_onlayer++ ){
+		    
+		    int id = LAYER_LIST.get(layer).get(id_onlayer);
+		    
+		    for( int i=0 ; i<NODES[id].child_num ; i++ ){
+			
+			bw_parirs.add( nodeCombinationBW( NODES[id].child_id.get(i) , id ) );
+			total_bw += bw_parirs.get(i);
+			
+		    }//end i for
 
-	    }
-
-	}
-
-
-    }
-    */
+		    //bw_ratio 0.0d ~ 1.0d
+		    if( bw_ratio > 1.0d )bw_ratio = 1.0d;
+		    
+		    //Processing to calculate cache
+		    for( int i=0 ; i<NODES[id].child_num ; i++ ){
+			
+			NODES[ NODES[id].child_id.get(i) ].cache += ( (bw_ratio*bw_parirs.get(i))*1000/8 ) * ( dt_ms - NODES[id].delay );
+			NODES[ NODES[id].child_id.get(i) ].delay = NODES[id].delay + ( (bw_ratio*bw_parirs.get(i))*1000 ) / ( 8 * MAX_PACKET_BYTE );
+			
+		    }//end i for
+		    
+		}// end id_onlayer for
+		
+	    }//end else
+	    
+	}//end layer 
+	
+    }//end function
+    
     /*
     public void nodeReconnect(){
 
@@ -360,59 +420,64 @@ public class Simulation extends JPanel{
 			    RenderingHints.VALUE_ANTIALIAS_ON);
 
 	BasicStroke stroke = new BasicStroke(this.STROKE);
-	g2.setStroke(stroke);
-
-	g2.setPaint(Color.BLUE);
-
-	//Set the position of Origin Source
-	OS.pos.setLocation( 50.0d + (this.WIDTH -150)/2.0 , 30.0d );
-
-	Ellipse2D.Double origin_src = 
-	    new Ellipse2D.Double( this.OS.pos.getX() - (this.OS_R/2) , this.OS.pos.getY() - (this.OS_R/2), this.OS_R , this.OS_R );
-	g2.fill(origin_src);
+	g2.setStroke(stroke);	
 	
-	
-	for( int layer=0 ; layer<this.MAX_LAYER ; layer++ ){
+	for( int layer=0 ; layer<= this.MAX_LAYER ; layer++ ){
 
-	    //g2.draw(new Line2D.Double( 50 ,70*(i+1) , this.WIDTH - 200 , 70*(i+1) ) );
-	    g2.setPaint(Color.BLACK);
-	    g2.drawString("--Layer "+layer+"--", this.WIDTH - 150 , 70*(layer+1) );
 
-	    int node_num_onlayer = this.LAYER_LIST.get(layer).size();
-	    double width_onlayer = (this.WIDTH-150-50)*1.0 / (node_num_onlayer+1);
-
-	    for( int id_onlayer=0; id_onlayer<node_num_onlayer ; id_onlayer++ ){
+	    if( layer==0 ){
 		
-		int id = this.LAYER_LIST.get(layer).get(id_onlayer);
+		//Set the position of Origin Source
+		OS.pos.setLocation( 50.0d + (this.WIDTH -150)/2.0 , 30.0d );
 
-		g2.setPaint(new Color(NODES[id].color));
+		//g2.setPaint(Color.BLACK);
+		//g2.drawString("--Layer "+layer+"--", this.WIDTH - 150 , 70*layer );
+		
+		g2.setPaint(Color.BLUE);
+		Ellipse2D.Double origin_src = 
+		    new Ellipse2D.Double( this.OS.pos.getX() - (this.OS_R/2) , this.OS.pos.getY() - (this.OS_R/2), this.OS_R , this.OS_R );
+		g2.fill(origin_src);
+		
+	    }else{
 
-		this.NODES[id].pos.setLocation( 50.0d + (id_onlayer+1)*width_onlayer , 70*(layer+1) );
-
-		int parent_id = this.NODES[id].parent_id;
-
-		if( parent_id == this.OS_ID ){
-
-		    g2.draw(new Line2D.Double( this.NODES[id].pos.getX() , this.NODES[id].pos.getY() , this.OS.pos.getX() , this.OS.pos.getY() ));
-
-		}else{
-
-		    g2.draw(new Line2D.Double( this.NODES[id].pos.getX() , this.NODES[id].pos.getY() , this.NODES[parent_id].pos.getX() , this.NODES[parent_id].pos.getY() ));
+		g2.setPaint(Color.BLACK);
+		g2.drawString("--Layer "+layer+"--", this.WIDTH - 150 , 70*layer );
+		
+		int node_num_onlayer = this.LAYER_LIST.get(layer).size();
+		double width_onlayer = (this.WIDTH-150-50)*1.0 / (node_num_onlayer+1);
+		
+		for( int id_onlayer=0; id_onlayer<node_num_onlayer ; id_onlayer++ ){
 		    
-		}		
-
-		Ellipse2D.Double node = 
-		    new Ellipse2D.Double( this.NODES[id].pos.getX() - (this.NODE_R/2), this.NODES[id].pos.getY() - (this.NODE_R/2), this.NODE_R , this.NODE_R );
-		g2.fill(node);
-
-	    }
+		    int id = this.LAYER_LIST.get(layer).get(id_onlayer);
+		    
+		    g2.setPaint(new Color(NODES[id].color));
+		    
+		    this.NODES[id].pos.setLocation( 50.0d + (id_onlayer+1)*width_onlayer , 70*layer );
+		    
+		    int parent_id = this.NODES[id].parent_id;
+		    
+		    if( parent_id == this.OS_ID ){
+			
+			g2.draw(new Line2D.Double( this.NODES[id].pos.getX() , this.NODES[id].pos.getY() , this.OS.pos.getX() , this.OS.pos.getY() ));
+			
+		    }else{
+			
+			g2.draw(new Line2D.Double( this.NODES[id].pos.getX() , this.NODES[id].pos.getY() , this.NODES[parent_id].pos.getX() , this.NODES[parent_id].pos.getY() ));
+			
+		    }		
+		    
+		    Ellipse2D.Double node = 
+			new Ellipse2D.Double( this.NODES[id].pos.getX() - (this.NODE_R/2), this.NODES[id].pos.getY() - (this.NODE_R/2), this.NODE_R , this.NODE_R );
+		    g2.fill(node);
+		    
+		}//end id_onlayer for
+		
+	    }//end else
 	    
-	}
+	}//end layer for
 
-	
+    }//end paintComponent()
 
-    }
-
-}
+}//end class
 
 class IntegerList extends ArrayList<Integer>{}
