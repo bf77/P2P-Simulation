@@ -25,6 +25,9 @@ public class Simulation extends JPanel{
     //1~200 The Bound of the BW
     static final int BOUND = 199;
 
+    //20~200 The Bound of the BW
+    static final int OS_BOUND = 180;
+
     static final int MAX_PACKET_BYTE = 1500;
 
     long TIMESTAMP = 0;
@@ -44,6 +47,9 @@ public class Simulation extends JPanel{
 
     //for eclipse
     static final double OS_R = 30.0d;
+
+    //10Mbps ->  buffer[Byte/ms]
+    static final double BUFFER = 10*1000*1.0 / 8;
     
     //Node
     Node[] NODES;
@@ -88,7 +94,6 @@ public class Simulation extends JPanel{
 	    if( sim.PRE_TIMESTAMP != sim.TIMESTAMP ){
 		sim.nodeParticipation( sim.LAYER_LIST );
 		sim.nodeStreaming( sim.TIMESTAMP - sim.PRE_TIMESTAMP );
-		System.out.println( "Cache:" + sim.NODES[432].cache );
 	    }
 
 	    sim.repaint();
@@ -105,13 +110,18 @@ public class Simulation extends JPanel{
 	
 	OS = new OriginSrc();
 
-	OS.BW_tlv = rnd.nextDouble()*BOUND + 1;
+	OS.BW_tlv = rnd.nextDouble()*OS_BOUND + 20;
 	System.out.println( "Origin Source:TLV " + OS.BW_tlv );
 
 	OS.child_num = 0;
 	OS.child_id = new ArrayList<Integer>();
 
 	OS.pos = new Point2D.Double( 0.0d , 0.0d );
+
+	OS.start_block_id = 0;
+	OS.end_block_id = 0;
+
+	OS.buffer = BUFFER;
 	
     }
     
@@ -123,14 +133,17 @@ public class Simulation extends JPanel{
 	//-Bandwidth between pairs--
 	BW_PAIRS = new double[PAIRS_NUM];
 
+	int cnt = 0;
+
 	//Including Origin Source
 	for( int i=0 ; i<(MAX_NODE) ; i++ ){
 
 	    for( int j=(i+1) ; j<(MAX_NODE + 1) ; j++ ){
 		
 		//1~X Mbps
-		BW_PAIRS[i] = rnd.nextDouble()*BOUND + 1;
+		BW_PAIRS[cnt] = rnd.nextDouble()*BOUND + 1;
 		System.out.println("Pairs ["+i+","+j+"]:"+BW_PAIRS[i]);
+		cnt++;
 
 	    }
 
@@ -144,8 +157,8 @@ public class Simulation extends JPanel{
 	    //init
 	    NODES[i] = new Node();
 
-	    //1~500 Mbps
-	    NODES[i].BW_tlv = rnd.nextDouble()*BOUND + 1;
+	    //100~500 Mbps
+	    NODES[i].BW_tlv = rnd.nextDouble()*400 + 100;
 
 	    //0~x min
 	    NODES[i].timestamp_to_join = rnd.nextInt(BOUND_TIME_JOIN);
@@ -159,8 +172,12 @@ public class Simulation extends JPanel{
 	    NODES[i].pre_depart_timestamp = 0;
 	    NODES[i].parent_id = -1;
 	    NODES[i].child_num = 0;
+	    NODES[i].start_block_id = 0;
+	    NODES[i].end_block_id = 0;
 	    NODES[i].delay = 0.0d;
-	    NODES[i].is_begin_stream = false;
+	    NODES[i].max_down_Bpms = 0.0d;
+	    NODES[i].is_begin_play = false;
+	    
 
 	    //Timestamp
 	    NODES[i].timestamp = TIMESTAMP;
@@ -313,62 +330,101 @@ public class Simulation extends JPanel{
 
     }
     
+    
 
     public void nodeStreaming( long dt_ms ){
 		
 	for(int layer=0 ; layer<=MAX_LAYER ; layer++ ){
 	    
-	    double total_bw = 0.0d;
-	    double bw_ratio =  OS.BW_tlv / total_bw;
-	    ArrayList<Double> bw_parirs = new ArrayList<Double>();
 	    int node_num_onlayer = LAYER_LIST.get(layer).size();
-
+	    
 	    //-- Layer 0 (Origin Source) --
 	    if( layer==0 ){
-	
-		//The total capacity
-
-		for( int i=0 ; i<OS.child_num ; i++ ){
-		    
-		    bw_parirs.add( nodeCombinationBW( OS.child_id.get(i) , OS_ID ) );
-		    total_bw += bw_parirs.get(i);
-		    
-		}
 		
-		//bw_ratio 0.0d ~ 1.0d
-		if( bw_ratio > 1.0d )bw_ratio = 1.0d;
+		double max_down_Bpms = ( OS.BW_tlv * 1000 / 8 ) / OS.child_num;
 		
 		//Processing to calculate cache
 		for( int i=0 ; i<OS.child_num ; i++ ){
 		    
-		    NODES[ OS.child_id.get(i) ].cache += ( (bw_ratio*bw_parirs.get(i))*1000/8 ) * dt_ms;
-		    NODES[ OS.child_id.get(i) ].delay = ( (bw_ratio*bw_parirs.get(i))*1000 ) / (8*MAX_PACKET_BYTE);
-	    
-		}
+		    int child_id = OS.child_id.get(i);
+		    double pair_Bpms = nodeCombinationBW( child_id , OS_ID ) * 1000 / 8 ;
+		    
+		    //Decide down Bpms
+		    if( max_down_Bpms < pair_Bpms ){
+			
+			if( max_down_Bpms > BUFFER )
+			    NODES[child_id].max_down_Bpms = BUFFER;
+			else
+			    NODES[child_id].max_down_Bpms = max_down_Bpms;
+			
+		    }else{
+			
+			if( pair_Bpms > BUFFER )
+			    NODES[child_id].max_down_Bpms = BUFFER;
+			else
+			    NODES[child_id].max_down_Bpms = pair_Bpms;
+			
+		    }
+		    
+		}//end for childnum
 		
 	    }//-- Layer 1~X --
 	    else{
 		
 		for( int id_onlayer=0 ; id_onlayer<node_num_onlayer ; id_onlayer++ ){
 		    
-		    int id = LAYER_LIST.get(layer).get(id_onlayer);
-		    
-		    for( int i=0 ; i<NODES[id].child_num ; i++ ){
-			
-			bw_parirs.add( nodeCombinationBW( NODES[id].child_id.get(i) , id ) );
-			total_bw += bw_parirs.get(i);
-			
-		    }//end i for
+		    int id = LAYER_LIST.get(layer).get(id_onlayer);		    		    	       		         double max_down_Bpms = ( NODES[id].BW_tlv * 1000 / 8 ) / NODES[id].child_num;
 
-		    //bw_ratio 0.0d ~ 1.0d
-		    if( bw_ratio > 1.0d )bw_ratio = 1.0d;
+
+		    if( max_down_Bpms < NODES[id].max_down_Bpms ){
+
+			NODES[id].total_buffer += max_down_Bpms * dt_ms;
+						
+		    }else{
+
+			NODES[id].total_buffer += NODES[id].max_down_Bpms * dt_ms;
+			
+		    }
 		    
+		    //System.out.println("Total buffer node "+id+":"+NODES[id].total_buffer);
+
 		    //Processing to calculate cache
 		    for( int i=0 ; i<NODES[id].child_num ; i++ ){
 			
-			NODES[ NODES[id].child_id.get(i) ].cache += ( (bw_ratio*bw_parirs.get(i))*1000/8 ) * ( dt_ms - NODES[id].delay );
-			NODES[ NODES[id].child_id.get(i) ].delay = NODES[id].delay + ( (bw_ratio*bw_parirs.get(i))*1000 ) / ( 8 * MAX_PACKET_BYTE );
+			int child_id = NODES[id].child_id.get(i);
+			double pair_Bpms = nodeCombinationBW( child_id , id ) * 1000 / 8 ;
 			
+			
+			if( !NODES[id].is_begin_stream )
+			    continue;
+
+			//Decide down Bpms to the lower layer
+			if( max_down_Bpms < pair_Bpms ){
+			    
+			    if( max_down_Bpms > BUFFER )
+				NODES[child_id].max_down_Bpms = BUFFER;
+			    else
+			    NODES[child_id].max_down_Bpms = max_down_Bpms;
+			    
+			}else{
+			    
+			    if( pair_Bpms > BUFFER )
+				NODES[child_id].max_down_Bpms = BUFFER;
+			else
+			    NODES[child_id].max_down_Bpms = pair_Bpms;
+			    
+			}
+			
+			
+			//Check stream flag
+			if( !NODES[child_id].is_begin_stream ){
+			    
+			    if( NODES[child_id].total_buffer > CACHE_TLV )
+				NODES[child_id].is_begin_stream = true;
+			    
+			}
+
+						
 		    }//end i for
 		    
 		}// end id_onlayer for

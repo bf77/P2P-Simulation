@@ -7,7 +7,7 @@ public class Node{
     double BW_tlv;
 
     //The number of packet
-    double cache; 
+    int cache; 
 
     //x y on the figure
     Point2D.Double pos;
@@ -31,6 +31,16 @@ public class Node{
 
     double delay;
 
-    Boolean is_begin_stream;
+    Boolean is_begin_play;
+
+    //Start block id
+    long start_block_id;
+
+    //End block id
+    long end_block_id;
+
+    double total_buffer;
+
+    double max_down_Bpms;
 
 }

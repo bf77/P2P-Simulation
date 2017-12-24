@@ -13,4 +13,13 @@ public class OriginSrc{
 
     Point2D.Double pos;
 
+    //[Byte/ms]
+    double buffer;
+
+    //Start block id
+    long start_block_id;
+
+    //End block id
+    long end_block_id;
+
 }
