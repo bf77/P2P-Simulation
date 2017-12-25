@@ -30,6 +30,10 @@ public class Simulation extends JPanel{
 
     static final int MAX_PACKET_BYTE = 1500;
 
+    int CAPACITY = 400;
+    
+    int CAPACITY_INITVALUE = 100;
+
     long TIMESTAMP = 0;
 
     long CURRENT_TIME = 0;
@@ -59,9 +63,7 @@ public class Simulation extends JPanel{
 
     static final int TMP_MAX_CHILD = 2;
 
-    static final double CACHE_TLV = MAX_PACKET_BYTE * 1000;
-
-    static final double DEFAULT_CACHE_TLV = MAX_PACKET_BYTE * 1000;
+    static final int CACHE_TLV = 1000;
 
     //The Bound of the time to join ( 0~10 min )
     static final int BOUND_TIME_JOIN = 1000 * 60;
@@ -110,7 +112,7 @@ public class Simulation extends JPanel{
 	
 	OS = new OriginSrc();
 
-	OS.BW_tlv = rnd.nextDouble()*OS_BOUND + 20;
+	OS.capacity = rnd.nextDouble()*CAPACITY + CAPACITY_INIT;
 	System.out.println( "Origin Source:TLV " + OS.BW_tlv );
 
 	OS.child_num = 0;
@@ -158,7 +160,7 @@ public class Simulation extends JPanel{
 	    NODES[i] = new Node();
 
 	    //100~500 Mbps
-	    NODES[i].BW_tlv = rnd.nextDouble()*400 + 100;
+	    NODES[i].capacity = rnd.nextDouble()*CAPACITY + CAPCACITY_INITVALUE;
 
 	    //0~x min
 	    NODES[i].timestamp_to_join = rnd.nextInt(BOUND_TIME_JOIN);
@@ -172,11 +174,12 @@ public class Simulation extends JPanel{
 	    NODES[i].pre_depart_timestamp = 0;
 	    NODES[i].parent_id = -1;
 	    NODES[i].child_num = 0;
-	    NODES[i].start_block_id = 0;
+	    NODES[i].start_block_id = -1;
 	    NODES[i].end_block_id = 0;
 	    NODES[i].delay = 0.0d;
 	    NODES[i].max_down_Bpms = 0.0d;
 	    NODES[i].is_begin_play = false;
+	    NODES[i].is_begin_stream = false;
 	    
 
 	    //Timestamp
@@ -223,7 +226,7 @@ public class Simulation extends JPanel{
 
     }
     
-    public void nodeParticipation( ArrayList<IntegerList> layer_list ){
+    public void nodeParticipation( ArrayList<IntegerList> layer_list , long dt_ms ){
 
 	System.out.println("Participating...");
 
@@ -243,6 +246,9 @@ public class Simulation extends JPanel{
 		//layer 1
 		if( layer==0 ){
 		    
+		    OS.start_block_id = (CURRENT_TIME - dt_ms) * BUFFER / MAX_PACKET_BYTE;
+		    OS.end_block_id = CURRENT_TIME * BUFFER / MAX_PACKET_BYTE;		    
+
 		    if( OS.child_num < TMP_MAX_CHILD ){
 
 			OS.child_num += 1;
@@ -250,6 +256,8 @@ public class Simulation extends JPanel{
 			
 			NODES[id].parent_id = OS_ID;
 			NODES[id].layer = layer + 1;
+			NODES[id].start_block_id = OS.end_block_id;
+			NODES[id].is_begin_streaming = true;
 			
 			//Store node's id to the first layer
 			layer_list.get(layer+1).add(id);
@@ -332,39 +340,27 @@ public class Simulation extends JPanel{
     
     
 
-    public void nodeStreaming( long dt_ms ){
+    public void nodeStreaming( ArrayList<IntegerList> layer_list , long dt_ms ){
 		
 	for(int layer=0 ; layer<=MAX_LAYER ; layer++ ){
 	    
-	    int node_num_onlayer = LAYER_LIST.get(layer).size();
+	    int node_num_onlayer = layer_list.get(layer).size();
 	    
 	    //-- Layer 0 (Origin Source) --
 	    if( layer==0 ){
 		
-		double max_down_Bpms = ( OS.BW_tlv * 1000 / 8 ) / OS.child_num;
+		double max_capacity_Bpms = ( OS.capacity * 1000 / 8 ) / OS.child_num;
 		
 		//Processing to calculate cache
 		for( int i=0 ; i<OS.child_num ; i++ ){
 		    
 		    int child_id = OS.child_id.get(i);
 		    double pair_Bpms = nodeCombinationBW( child_id , OS_ID ) * 1000 / 8 ;
+
+		    //Determine the min value
+		    NODES[child_id].max_down_Bpms = Math.min( max_capacity_Bpms , pair_Bpms );
+		    NODES[child_id].max_down_Bpms = Math.min( NODES[child_id].max_down_Bpms , BUFFER );
 		    
-		    //Decide down Bpms
-		    if( max_down_Bpms < pair_Bpms ){
-			
-			if( max_down_Bpms > BUFFER )
-			    NODES[child_id].max_down_Bpms = BUFFER;
-			else
-			    NODES[child_id].max_down_Bpms = max_down_Bpms;
-			
-		    }else{
-			
-			if( pair_Bpms > BUFFER )
-			    NODES[child_id].max_down_Bpms = BUFFER;
-			else
-			    NODES[child_id].max_down_Bpms = pair_Bpms;
-			
-		    }
 		    
 		}//end for childnum
 		
@@ -373,20 +369,35 @@ public class Simulation extends JPanel{
 		
 		for( int id_onlayer=0 ; id_onlayer<node_num_onlayer ; id_onlayer++ ){
 		    
-		    int id = LAYER_LIST.get(layer).get(id_onlayer);		    		    	       		         double max_down_Bpms = ( NODES[id].BW_tlv * 1000 / 8 ) / NODES[id].child_num;
+		    int id = LAYER_LIST.get(layer).get(id_onlayer);
+		    //The number of nodes's child and the number of the parent 
+		    double max_capacity_Bpms = ( NODES[id].capacity * 1000 / 8 ) / ( NODES[id].child_num + 1 );
 
-
-		    if( max_down_Bpms < NODES[id].max_down_Bpms ){
-
-			NODES[id].total_buffer += max_down_Bpms * dt_ms;
-						
-		    }else{
-
-			NODES[id].total_buffer += NODES[id].max_down_Bpms * dt_ms;
+		    //When participating
+		    if( !NODES[id].is_begin_streaming ){
 			
+			NODES[id].is_begin_streaming = true;
+			System.out.println("NODE "+id+": Begin streaming ");
+			continue;
+
 		    }
+
+		    //-id processing-
 		    
-		    //System.out.println("Total buffer node "+id+":"+NODES[id].total_buffer);
+		    if( NODES[id].cache > CACHE_TLV )
+			NODES[child_id].is_begin_play = true;
+		    
+		    double downloaded_data = Math.min( max_capacity_Bpms , NODES[id].max_down_Bpms ) * dt_ms;
+		    int dt_block_id = downloaded_data / MAX_PACKET_BYTE;
+		    
+		    NODES[id].total_buffer += downloaded_data;
+		    NODES[id].cache +=  dt_block_id;
+		    NODES[id].end_block_id = NODES[id].next_block_id;
+		    NODES[id].next_block_id += dt_block_id;
+		    
+		    //For output
+		    if( layer==1 )
+			System.out.println("Total buffer node "+id+":"+NODES[id].total_buffer);
 
 		    //Processing to calculate cache
 		    for( int i=0 ; i<NODES[id].child_num ; i++ ){
@@ -395,35 +406,30 @@ public class Simulation extends JPanel{
 			double pair_Bpms = nodeCombinationBW( child_id , id ) * 1000 / 8 ;
 			
 			
+
+			//Check stream flag
 			if( !NODES[id].is_begin_stream )
 			    continue;
-
+			    
 			//Decide down Bpms to the lower layer
 			if( max_down_Bpms < pair_Bpms ){
 			    
 			    if( max_down_Bpms > BUFFER )
 				NODES[child_id].max_down_Bpms = BUFFER;
 			    else
-			    NODES[child_id].max_down_Bpms = max_down_Bpms;
+				NODES[child_id].max_down_Bpms = max_down_Bpms;
 			    
 			}else{
 			    
 			    if( pair_Bpms > BUFFER )
 				NODES[child_id].max_down_Bpms = BUFFER;
-			else
-			    NODES[child_id].max_down_Bpms = pair_Bpms;
+			    else
+				NODES[child_id].max_down_Bpms = pair_Bpms;
 			    
 			}
 			
 			
-			//Check stream flag
-			if( !NODES[child_id].is_begin_stream ){
-			    
-			    if( NODES[child_id].total_buffer > CACHE_TLV )
-				NODES[child_id].is_begin_stream = true;
-			    
-			}
-
+			
 						
 		    }//end i for
 		    

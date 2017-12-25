@@ -3,7 +3,7 @@ import java.util.ArrayList;
 
 public class OriginSrc{
 
-    double BW_tlv;
+    double capacity;
 
     long timestamp;
 
@@ -17,7 +17,7 @@ public class OriginSrc{
     double buffer;
 
     //Start block id
-    long start_block_id;
+    long next_block_id;
 
     //End block id
     long end_block_id;

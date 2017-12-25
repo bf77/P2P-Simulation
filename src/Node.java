@@ -4,7 +4,7 @@ import java.util.ArrayList;
 public class Node{
 
     //The threshold limit value of bandwidth
-    double BW_tlv;
+    double capacity;
 
     //The number of packet
     int cache; 
@@ -31,10 +31,12 @@ public class Node{
 
     double delay;
 
-    Boolean is_begin_play;
+    boolean is_begin_play;
+    
+    boolean is_begin_streaming;
 
     //Start block id
-    long start_block_id;
+    long next_block_id;
 
     //End block id
     long end_block_id;
