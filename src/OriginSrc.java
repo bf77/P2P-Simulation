@@ -9,6 +9,8 @@ public class OriginSrc{
 
     int child_num;
 
+    int max_child_num;
+
     ArrayList<Integer> child_id;
 
     Point2D.Double pos;
@@ -16,10 +18,10 @@ public class OriginSrc{
     //[Byte/ms]
     double buffer;
 
-    //Start block id
-    long next_block_id;
+    //Prev block id
+    double prev_block_id;
 
-    //End block id
-    long end_block_id;
+    //Next block id
+    double next_block_id;
 
 }

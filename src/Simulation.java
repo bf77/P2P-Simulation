@@ -15,8 +15,6 @@ public class Simulation extends JPanel{
     static final int HEIGHT = 800;
     static final float STROKE = 2.0f;
 
-    static final int MAX_LAYER = 10;
-
     static final int MAX_NODE = 1022;
 
     //Including Origin Source
@@ -30,7 +28,9 @@ public class Simulation extends JPanel{
 
     static final int MAX_PACKET_BYTE = 1500;
 
-    int CAPACITY = 400;
+    int MAX_LAYER = 0;
+
+    int CAPACITY = 200;
     
     int CAPACITY_INITVALUE = 100;
 
@@ -53,7 +53,7 @@ public class Simulation extends JPanel{
     static final double OS_R = 30.0d;
 
     //10Mbps ->  buffer[Byte/ms]
-    static final double BUFFER = 10*1000*1.0 / 8;
+    static final double BUFFER = 20*1000*1.0 / 8;
     
     //Node
     Node[] NODES;
@@ -63,7 +63,7 @@ public class Simulation extends JPanel{
 
     static final int TMP_MAX_CHILD = 2;
 
-    static final int CACHE_TLV = 1000;
+    static final double CACHE_TLV = 500.0d;
 
     //The Bound of the time to join ( 0~10 min )
     static final int BOUND_TIME_JOIN = 1000 * 60;
@@ -85,7 +85,7 @@ public class Simulation extends JPanel{
 	frame.setVisible(true);
 
 	sim.LAYER_LIST = new ArrayList<IntegerList>(sim.MAX_LAYER);
-	sim.initArrayLL( sim.LAYER_LIST , sim.MAX_LAYER+1 );
+	sim.initLayerList();
 		    
 	sim.osInitialize();
 	sim.nodesInitialize();
@@ -94,8 +94,11 @@ public class Simulation extends JPanel{
 	while(true){
 	    
 	    if( sim.PRE_TIMESTAMP != sim.TIMESTAMP ){
-		sim.nodeParticipation( sim.LAYER_LIST );
-		sim.nodeStreaming( sim.TIMESTAMP - sim.PRE_TIMESTAMP );
+		
+		long dt_ms = sim.TIMESTAMP - sim.PRE_TIMESTAMP;
+		sim.nodeParticipation( dt_ms );
+		sim.nodeStreaming( dt_ms );
+
 	    }
 
 	    sim.repaint();
@@ -112,16 +115,18 @@ public class Simulation extends JPanel{
 	
 	OS = new OriginSrc();
 
-	OS.capacity = rnd.nextDouble()*CAPACITY + CAPACITY_INIT;
-	System.out.println( "Origin Source:TLV " + OS.BW_tlv );
+	OS.capacity = rnd.nextDouble()*CAPACITY + CAPACITY_INITVALUE;
+	System.out.println( "Origin Source: capacity " + OS.capacity );
 
 	OS.child_num = 0;
 	OS.child_id = new ArrayList<Integer>();
 
 	OS.pos = new Point2D.Double( 0.0d , 0.0d );
 
-	OS.start_block_id = 0;
-	OS.end_block_id = 0;
+	OS.prev_block_id = 0.0d;
+	OS.next_block_id = 0.0d;
+
+	OS.max_child_num = (int)( (OS.capacity * 1000 / 8) / BUFFER );
 
 	OS.buffer = BUFFER;
 	
@@ -144,7 +149,7 @@ public class Simulation extends JPanel{
 		
 		//1~X Mbps
 		BW_PAIRS[cnt] = rnd.nextDouble()*BOUND + 1;
-		System.out.println("Pairs ["+i+","+j+"]:"+BW_PAIRS[i]);
+		//System.out.println("Pairs ["+i+","+j+"]:"+BW_PAIRS[i]);
 		cnt++;
 
 	    }
@@ -160,7 +165,7 @@ public class Simulation extends JPanel{
 	    NODES[i] = new Node();
 
 	    //100~500 Mbps
-	    NODES[i].capacity = rnd.nextDouble()*CAPACITY + CAPCACITY_INITVALUE;
+	    NODES[i].capacity = rnd.nextDouble()*CAPACITY + CAPACITY_INITVALUE;
 
 	    //0~x min
 	    NODES[i].timestamp_to_join = rnd.nextInt(BOUND_TIME_JOIN);
@@ -170,16 +175,20 @@ public class Simulation extends JPanel{
 
 	    //Init value
 	    NODES[i].layer = 0;
-       	    NODES[i].cache = 0;
+       	    NODES[i].cache = 0.0d;
+	    NODES[i].played_buffer = 0.0d;
+	    NODES[i].total_buffer = 0.0d;
 	    NODES[i].pre_depart_timestamp = 0;
 	    NODES[i].parent_id = -1;
 	    NODES[i].child_num = 0;
-	    NODES[i].start_block_id = -1;
-	    NODES[i].end_block_id = 0;
+	    NODES[i].max_child_num = (int)( (NODES[i].capacity * 1000 / 8) / BUFFER ) - 1 ;
+	    NODES[i].first_block_id = -1.0d;
+	    NODES[i].prev_block_id = -1.0d;
+	    NODES[i].next_block_id = -1.0d;
 	    NODES[i].delay = 0.0d;
 	    NODES[i].max_down_Bpms = 0.0d;
-	    NODES[i].is_begin_play = false;
-	    NODES[i].is_begin_stream = false;
+	    NODES[i].is_begin_playing = false;
+	    NODES[i].is_begin_streaming = false;
 	    
 
 	    //Timestamp
@@ -191,7 +200,7 @@ public class Simulation extends JPanel{
 	    //Initialize
 	    NODES[i].child_id = new ArrayList<Integer>();
 
-	    System.out.print("Node "+i+":TLV "+NODES[i].BW_tlv);
+	    System.out.print("Node "+i+":capacity "+NODES[i].capacity);
 	    System.out.println(" Timestamp to join "+NODES[i].timestamp_to_join);
 
 	}
@@ -216,17 +225,17 @@ public class Simulation extends JPanel{
 
     }
 
-    public void initArrayLL( ArrayList<IntegerList> ll , int length ){
+    public void initLayerList(){
 
-	for( int i=0 ; i<length ; i++ )
-	    ll.add( new IntegerList() );
+	
+	LAYER_LIST.add( new IntegerList() );
 
 	//layer 0
-	ll.get(0).add(OS_ID);
+	LAYER_LIST.get(0).add(OS_ID);
 
     }
     
-    public void nodeParticipation( ArrayList<IntegerList> layer_list , long dt_ms ){
+    public void nodeParticipation( long dt_ms ){
 
 	System.out.println("Participating...");
 
@@ -246,21 +255,29 @@ public class Simulation extends JPanel{
 		//layer 1
 		if( layer==0 ){
 		    
-		    OS.start_block_id = (CURRENT_TIME - dt_ms) * BUFFER / MAX_PACKET_BYTE;
-		    OS.end_block_id = CURRENT_TIME * BUFFER / MAX_PACKET_BYTE;		    
+		    OS.prev_block_id = (CURRENT_TIME - dt_ms) * BUFFER / MAX_PACKET_BYTE;
+		    OS.next_block_id = CURRENT_TIME * BUFFER / MAX_PACKET_BYTE;
 
-		    if( OS.child_num < TMP_MAX_CHILD ){
+		    if( OS.child_num < OS.max_child_num ){
 
 			OS.child_num += 1;
 			OS.child_id.add(id);
 			
 			NODES[id].parent_id = OS_ID;
 			NODES[id].layer = layer + 1;
-			NODES[id].start_block_id = OS.end_block_id;
-			NODES[id].is_begin_streaming = true;
-			
+			NODES[id].first_block_id = OS.next_block_id;
+			NODES[id].prev_block_id = NODES[id].first_block_id;
+
+			//Update layer list
+			if( (layer+1) > MAX_LAYER ){
+
+			    LAYER_LIST.add( new IntegerList() );
+			    MAX_LAYER++;
+
+			}
+
 			//Store node's id to the first layer
-			layer_list.get(layer+1).add(id);
+			LAYER_LIST.get(layer+1).add(id);
 			
 			System.out.println("Node "+id+" on Layer "+ (layer+1));
 			break;
@@ -271,14 +288,18 @@ public class Simulation extends JPanel{
 		else{
 		    
 		    //The number of nodes on the layer
-			int node_num_onlayer = layer_list.get(layer).size();
+			int node_num_onlayer = LAYER_LIST.get(layer).size();
 			
 			for( int id_onlayer=0 ; id_onlayer<node_num_onlayer ; id_onlayer++ ){
 			    
-			    int parent_id = layer_list.get(layer).get(id_onlayer);
-			    
-			    if( NODES[parent_id].child_num < TMP_MAX_CHILD ){
-				
+			    int parent_id = LAYER_LIST.get(layer).get(id_onlayer);
+
+			    if( NODES[parent_id].cache < CACHE_TLV )
+				continue;
+
+			    //Check the number of children 
+			    if( NODES[parent_id].child_num < NODES[parent_id].max_child_num ){
+
 				//Processing to parent
 				NODES[parent_id].child_num += 1;
 				NODES[parent_id].child_id.add(id);
@@ -286,9 +307,19 @@ public class Simulation extends JPanel{
 				//Processing to child
 				NODES[id].parent_id = parent_id;
 				NODES[id].layer = layer + 1;
-				
+				NODES[id].first_block_id = NODES[parent_id].next_block_id;
+				NODES[id].prev_block_id = NODES[id].first_block_id;
+
+				//Update layer list
+				if( (layer+1) > MAX_LAYER ){
+				    
+				    LAYER_LIST.add( new IntegerList() );
+				    MAX_LAYER++;
+				    
+				}
+
 				//Regist id to layer_list
-				layer_list.get(layer+1).add(id);
+				LAYER_LIST.get(layer+1).add(id);
 				
 				//Print
 				System.out.println("Node "+id+" on Layer "+(layer+1));
@@ -340,11 +371,11 @@ public class Simulation extends JPanel{
     
     
 
-    public void nodeStreaming( ArrayList<IntegerList> layer_list , long dt_ms ){
+    public void nodeStreaming( long dt_ms ){
 		
 	for(int layer=0 ; layer<=MAX_LAYER ; layer++ ){
 	    
-	    int node_num_onlayer = layer_list.get(layer).size();
+	    int node_num_onlayer = LAYER_LIST.get(layer).size();
 	    
 	    //-- Layer 0 (Origin Source) --
 	    if( layer==0 ){
@@ -369,11 +400,15 @@ public class Simulation extends JPanel{
 		
 		for( int id_onlayer=0 ; id_onlayer<node_num_onlayer ; id_onlayer++ ){
 		    
+		    //--Processing for the node id 
+
+		    //ID of node
 		    int id = LAYER_LIST.get(layer).get(id_onlayer);
+
 		    //The number of nodes's child and the number of the parent 
 		    double max_capacity_Bpms = ( NODES[id].capacity * 1000 / 8 ) / ( NODES[id].child_num + 1 );
 
-		    //When participating
+		    //--Check processing to participate--
 		    if( !NODES[id].is_begin_streaming ){
 			
 			NODES[id].is_begin_streaming = true;
@@ -381,56 +416,50 @@ public class Simulation extends JPanel{
 			continue;
 
 		    }
-
-		    //-id processing-
 		    
-		    if( NODES[id].cache > CACHE_TLV )
-			NODES[child_id].is_begin_play = true;
-		    
+		    //--Buffer processing--
 		    double downloaded_data = Math.min( max_capacity_Bpms , NODES[id].max_down_Bpms ) * dt_ms;
-		    int dt_block_id = downloaded_data / MAX_PACKET_BYTE;
-		    
 		    NODES[id].total_buffer += downloaded_data;
-		    NODES[id].cache +=  dt_block_id;
-		    NODES[id].end_block_id = NODES[id].next_block_id;
-		    NODES[id].next_block_id += dt_block_id;
-		    
+
+		    double total_block_id = NODES[id].total_buffer / MAX_PACKET_BYTE;
+
+		    NODES[id].prev_block_id = NODES[id].next_block_id;
+		    NODES[id].next_block_id = NODES[id].first_block_id + total_block_id;
+
+		    //--Cache processing--
+		    if( NODES[id].is_begin_playing ){
+			
+			NODES[id].played_buffer += BUFFER * dt_ms;
+			NODES[id].cache =  ( NODES[id].total_buffer - NODES[id].played_buffer ) / MAX_PACKET_BYTE;
+			
+		    }else{
+			
+			NODES[id].cache = total_block_id;
+
+			if( NODES[id].cache >= CACHE_TLV ){
+		
+			    NODES[id].is_begin_playing = true;
+			
+			}
+			
+		    }
+		    		    
 		    //For output
 		    if( layer==1 )
-			System.out.println("Total buffer node "+id+":"+NODES[id].total_buffer);
+			printNode(id);
 
-		    //Processing to calculate cache
+
+		    //--Processing for the children ids that the node id has 
+
 		    for( int i=0 ; i<NODES[id].child_num ; i++ ){
 			
 			int child_id = NODES[id].child_id.get(i);
 			double pair_Bpms = nodeCombinationBW( child_id , id ) * 1000 / 8 ;
-			
-			
 
-			//Check stream flag
-			if( !NODES[id].is_begin_stream )
-			    continue;
-			    
-			//Decide down Bpms to the lower layer
-			if( max_down_Bpms < pair_Bpms ){
-			    
-			    if( max_down_Bpms > BUFFER )
-				NODES[child_id].max_down_Bpms = BUFFER;
-			    else
-				NODES[child_id].max_down_Bpms = max_down_Bpms;
-			    
-			}else{
-			    
-			    if( pair_Bpms > BUFFER )
-				NODES[child_id].max_down_Bpms = BUFFER;
-			    else
-				NODES[child_id].max_down_Bpms = pair_Bpms;
-			    
-			}
+			//Determine the min value
+			NODES[child_id].max_down_Bpms = Math.min( max_capacity_Bpms , BUFFER );
+			NODES[child_id].max_down_Bpms = Math.min( NODES[child_id].max_down_Bpms , pair_Bpms );
 			
-			
-			
-						
 		    }//end i for
 		    
 		}// end id_onlayer for
@@ -466,6 +495,40 @@ public class Simulation extends JPanel{
 
     }
     */
+
+    public void printNode( int id ){
+	
+	System.out.println("------------------------ Node "+id+" ------------------------");
+	System.out.println("Capacity:"+NODES[id].capacity);
+	System.out.println("Total buffer:"+NODES[id].total_buffer);
+	System.out.println("Cache:"+NODES[id].cache);
+	System.out.println("Played buffer:"+NODES[id].played_buffer);
+	System.out.println("The first block id:"+NODES[id].first_block_id);
+	System.out.println("The previous block id:"+NODES[id].prev_block_id);
+	System.out.println("The next block id:"+NODES[id].next_block_id);
+	System.out.println("Max download Byte per ms:"+NODES[id].max_down_Bpms);
+	System.out.println("Streaming flag:"+NODES[id].is_begin_streaming);
+	System.out.println("Playing flag:"+NODES[id].is_begin_playing);
+	System.out.println();
+
+    }
+
+    public void printNode( int id , long dt_ms ){
+
+	System.out.println("------------------------ Node "+id+" ------------------------");
+	System.out.println("Capacity:"+NODES[id].capacity);
+	System.out.println("Total buffer:"+NODES[id].total_buffer);
+	System.out.println("Cache:"+NODES[id].cache);
+	System.out.println("Played buffer for dt:"+(BUFFER*dt_ms/MAX_PACKET_BYTE));
+	System.out.println("The first block id:"+NODES[id].first_block_id);
+	System.out.println("The previous block id:"+NODES[id].prev_block_id);
+	System.out.println("The next block id:"+NODES[id].next_block_id);
+	System.out.println("Max download Byte per ms:"+NODES[id].max_down_Bpms);
+	System.out.println("Streaming flag:"+NODES[id].is_begin_streaming);
+	System.out.println("Playing flag:"+NODES[id].is_begin_playing);
+	System.out.println();
+
+    }
 
     @Override
     public void paintComponent(Graphics g){

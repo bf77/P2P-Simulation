@@ -7,7 +7,7 @@ public class Node{
     double capacity;
 
     //The number of packet
-    int cache; 
+    double cache; 
 
     //x y on the figure
     Point2D.Double pos;
@@ -16,6 +16,8 @@ public class Node{
 
     int child_num;
 
+    int max_child_num;
+    
     ArrayList<Integer> child_id;
 
     long pre_depart_timestamp;
@@ -31,15 +33,20 @@ public class Node{
 
     double delay;
 
-    boolean is_begin_play;
+    boolean is_begin_playing;
     
     boolean is_begin_streaming;
 
     //Start block id
-    long next_block_id;
+    double first_block_id;
 
-    //End block id
-    long end_block_id;
+    //prev block id
+    double prev_block_id;
+
+    //Next block id
+    double next_block_id;
+
+    double played_buffer;
 
     double total_buffer;
 
