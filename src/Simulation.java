@@ -15,7 +15,7 @@ public class Simulation extends JPanel{
     static final int HEIGHT = 800;
     static final float STROKE = 2.0f;
 
-    static final int MAX_NODE = 510;
+    static final int MAX_NODE = 1022;
 
     //Including Origin Source
     static final int PAIRS_NUM = ( MAX_NODE * (MAX_NODE + 1) )/2;
@@ -253,7 +253,6 @@ public class Simulation extends JPanel{
 	    if( NODES[id].parent_id != -1 )
 		continue;
 	    
-	    Boolean is_has_partipated = false;
 	    for( int layer=0 ; layer<=MAX_LAYER ; layer++ ){
 		
 		//layer 1
@@ -312,6 +311,7 @@ public class Simulation extends JPanel{
 		    if( rnd_int > 0 ){
 			
 			next_id = NODES[parent_id].child_id.get(rnd_int-1);
+			System.out.println("next layer:"+NODES[next_id].layer);
 			continue;
 			
 		    }
@@ -346,12 +346,11 @@ public class Simulation extends JPanel{
 			
 			//Print
 			System.out.println("Node "+id+" on Layer "+(layer+1));
-			is_has_partipated = true;
 			
-		    }//
-		    else{
-			break;
 		    }
+
+		    break;
+		   
 		    
 		}//end else layer!=0
 		
