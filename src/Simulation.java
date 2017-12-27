@@ -15,7 +15,7 @@ public class Simulation extends JPanel{
     static final int HEIGHT = 800;
     static final float STROKE = 2.0f;
 
-    static final int MAX_NODE = 1022;
+    static final int MAX_NODE = 510;
 
     //Including Origin Source
     static final int PAIRS_NUM = ( MAX_NODE * (MAX_NODE + 1) )/2;
@@ -239,6 +239,11 @@ public class Simulation extends JPanel{
 
 	System.out.println("Participating...");
 
+	Random rnd = new Random();
+	int prev_rnd_int=0; 
+	int rnd_int=0;
+	
+
 	for( int id=0 ; id<MAX_NODE ; id++ ){
 
 	    //Whether Nodes can join
@@ -259,6 +264,13 @@ public class Simulation extends JPanel{
 		    OS.next_block_id = CURRENT_TIME * BUFFER / MAX_PACKET_BYTE;
 
 		    if( OS.child_num < OS.max_child_num ){
+
+			prev_rnd_int = rnd_int;
+			rnd_int = rnd.nextInt( OS.child_num + 1 );
+			System.out.println("rnd:"+rnd_int);
+			
+			if( rnd_int > 0 )
+			    continue;
 
 			OS.child_num += 1;
 			OS.child_id.add(id);
@@ -290,15 +302,26 @@ public class Simulation extends JPanel{
 		    //The number of nodes on the layer
 			int node_num_onlayer = LAYER_LIST.get(layer).size();
 			
-			for( int id_onlayer=0 ; id_onlayer<node_num_onlayer ; id_onlayer++ ){
-			    
-			    int parent_id = LAYER_LIST.get(layer).get(id_onlayer);
+			if( rnd_int == 0 )
+			    rnd_int = rnd.nextInt( node_num_onlayer ) + 1;
 
-			    if( NODES[parent_id].cache < CACHE_TLV )
+			for( int id_onlayer=(rnd_int-1) ; id_onlayer<node_num_onlayer ; id_onlayer++ ){
+			    
+			    int parent_id = LAYER_LIST.get(layer).get(id_onlayer);			    
+
+			    if( NODES[parent_id].cache < CACHE_TLV ){
+
 				continue;
+
+			    }
 
 			    //Check the number of children 
 			    if( NODES[parent_id].child_num < NODES[parent_id].max_child_num ){
+		
+				//Proceccing related to random
+				rnd_int = rnd.nextInt( NODES[parent_id].child_num + 1 );
+				if( rnd_int > 0 )
+				    break;
 
 				//Processing to parent
 				NODES[parent_id].child_num += 1;
@@ -445,8 +468,8 @@ public class Simulation extends JPanel{
 		    }
 		    		    
 		    //For output
-		    if( layer==1 )
-			printNode(id);
+		    //if( layer==1 )
+			//printNode(id);
 
 
 		    //--Processing for the children ids that the node id has 
