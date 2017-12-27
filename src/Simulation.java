@@ -219,9 +219,9 @@ public class Simulation extends JPanel{
 
 	CURRENT_TIME += TIMESTAMP - PRE_TIMESTAMP; 
 	
-	System.out.println("Time:"+CURRENT_TIME+"ms "+CURRENT_TIME/1000+"s");
-	System.out.println("Timestamp:"+TIMESTAMP+"ms");
-	System.out.println("Previous timestamp:"+PRE_TIMESTAMP+"ms");
+	//System.out.println("Time:"+CURRENT_TIME+"ms "+CURRENT_TIME/1000+"s");
+	//System.out.println("Timestamp:"+TIMESTAMP+"ms");
+	//System.out.println("Previous timestamp:"+PRE_TIMESTAMP+"ms");
 
     }
 
@@ -237,12 +237,11 @@ public class Simulation extends JPanel{
     
     public void nodeParticipation( long dt_ms ){
 
-	System.out.println("Participating...");
+	//System.out.println("Participating...");
 
 	Random rnd = new Random();
-	int prev_rnd_int=0; 
 	int rnd_int=0;
-	
+	int next_id=0;
 
 	for( int id=0 ; id<MAX_NODE ; id++ ){
 
@@ -262,16 +261,20 @@ public class Simulation extends JPanel{
 		    
 		    OS.prev_block_id = (CURRENT_TIME - dt_ms) * BUFFER / MAX_PACKET_BYTE;
 		    OS.next_block_id = CURRENT_TIME * BUFFER / MAX_PACKET_BYTE;
-
-		    if( OS.child_num < OS.max_child_num ){
-
-			prev_rnd_int = rnd_int;
-			rnd_int = rnd.nextInt( OS.child_num + 1 );
-			System.out.println("rnd:"+rnd_int);
+		    
+		    rnd_int = rnd.nextInt( OS.child_num + 1 );
+		    System.out.println("rnd:"+rnd_int+" layer:"+layer);
+		    
+		    //[rnd_int]==0 -> Set as my child
+		    if( rnd_int > 0 ){
 			
-			if( rnd_int > 0 )
-			    continue;
-
+			next_id = OS.child_id.get(rnd_int-1);
+			continue;
+			
+		    }
+			
+		    if( OS.child_num < OS.max_child_num ){
+						
 			OS.child_num += 1;
 			OS.child_id.add(id);
 			
@@ -279,15 +282,15 @@ public class Simulation extends JPanel{
 			NODES[id].layer = layer + 1;
 			NODES[id].first_block_id = OS.next_block_id;
 			NODES[id].prev_block_id = NODES[id].first_block_id;
-
+			
 			//Update layer list
 			if( (layer+1) > MAX_LAYER ){
-
+			    
 			    LAYER_LIST.add( new IntegerList() );
 			    MAX_LAYER++;
-
+			    
 			}
-
+			
 			//Store node's id to the first layer
 			LAYER_LIST.get(layer+1).add(id);
 			
@@ -299,73 +302,67 @@ public class Simulation extends JPanel{
 		}//layer 2~10
 		else{
 		    
-		    //The number of nodes on the layer
-			int node_num_onlayer = LAYER_LIST.get(layer).size();
+		    
+		    int parent_id = next_id;
+		    System.out.println("parent_id:"+parent_id+" layer:"+layer);
+		    
+		    //Proceccing related to random
+		    rnd_int = rnd.nextInt( NODES[parent_id].child_num + 1 );
+		    
+		    if( rnd_int > 0 ){
 			
-			if( rnd_int == 0 )
-			    rnd_int = rnd.nextInt( node_num_onlayer ) + 1;
-
-			for( int id_onlayer=(rnd_int-1) ; id_onlayer<node_num_onlayer ; id_onlayer++ ){
+			next_id = NODES[parent_id].child_id.get(rnd_int-1);
+			continue;
+			
+		    }
+		    
+		    //Check cache
+		    if( NODES[parent_id].cache < CACHE_TLV )	    
+			break;
+		    
+		    //Check the number of children 
+		    if( NODES[parent_id].child_num < NODES[parent_id].max_child_num ){
+			
+			//Processing to parent
+			NODES[parent_id].child_num += 1;
+			NODES[parent_id].child_id.add(id);
+			
+			//Processing to child
+			NODES[id].parent_id = parent_id;
+			NODES[id].layer = layer + 1;
+			NODES[id].first_block_id = NODES[parent_id].next_block_id;
+			NODES[id].prev_block_id = NODES[id].first_block_id;
+			
+			//Update layer list
+			if( (layer+1) > MAX_LAYER ){
 			    
-			    int parent_id = LAYER_LIST.get(layer).get(id_onlayer);			    
-
-			    if( NODES[parent_id].cache < CACHE_TLV ){
-
-				continue;
-
-			    }
-
-			    //Check the number of children 
-			    if( NODES[parent_id].child_num < NODES[parent_id].max_child_num ){
-		
-				//Proceccing related to random
-				rnd_int = rnd.nextInt( NODES[parent_id].child_num + 1 );
-				if( rnd_int > 0 )
-				    break;
-
-				//Processing to parent
-				NODES[parent_id].child_num += 1;
-				NODES[parent_id].child_id.add(id);
-				
-				//Processing to child
-				NODES[id].parent_id = parent_id;
-				NODES[id].layer = layer + 1;
-				NODES[id].first_block_id = NODES[parent_id].next_block_id;
-				NODES[id].prev_block_id = NODES[id].first_block_id;
-
-				//Update layer list
-				if( (layer+1) > MAX_LAYER ){
-				    
-				    LAYER_LIST.add( new IntegerList() );
-				    MAX_LAYER++;
-				    
-				}
-
-				//Regist id to layer_list
-				LAYER_LIST.get(layer+1).add(id);
-				
-				//Print
-				System.out.println("Node "+id+" on Layer "+(layer+1));
-				is_has_partipated = true;
-				break;
-				
-			    }
+			    LAYER_LIST.add( new IntegerList() );
+			    MAX_LAYER++;
 			    
-			}//end one layer's for
+			}
 			
-			if( is_has_partipated )
-			    break;
+			//Regist id to layer_list
+			LAYER_LIST.get(layer+1).add(id);
 			
-		}//end layer!=0 else
+			//Print
+			System.out.println("Node "+id+" on Layer "+(layer+1));
+			is_has_partipated = true;
+			
+		    }//
+		    else{
+			break;
+		    }
+		    
+		}//end else layer!=0
 		
 	    }//end layers' for
-	    	    
+	    
 	}//end all nodes for
 	
-	System.out.println("All nodes have participated...");
-
+	//System.out.println("All nodes have participated...");
+	
     }
-
+    
     
     public double nodeCombinationBW( int n , int m ){
 
