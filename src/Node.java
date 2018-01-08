@@ -27,6 +27,12 @@ public class Node{
     //Timestamp to start participating ms
     long timestamp; 
 
+    ArrayList<Integer> connected_list;
+
+    int reconnect_count;
+
+    int list_range;
+
     int layer;
 
     int color;
