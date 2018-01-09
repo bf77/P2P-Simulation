@@ -63,11 +63,11 @@ public class Simulation extends JPanel{
 
     static final int TMP_MAX_CHILD = 2;
 
-    static final double CACHE_TLV = 80.0d;
+    static final double CACHE_TLV = 160.0d;
 
-    static final double DEFAULT_CACHE = 100.0d;
+    static final double DEFAULT_CACHE = 200.0d;
 
-    static final double CACHE_RATE_TLV = 0.90d;
+    static final double CACHE_RATE_TLV = 1.0d;
 
     //The Bound of the time to join ( 0~10 min )
     static final int BOUND_TIME_JOIN = 1000 * 60;
@@ -496,16 +496,11 @@ public class Simulation extends JPanel{
 
 		int id = LAYER_LIST.get(layer).get(id_onlayer);
 
-		if( NODES[id].cache_rate > CACHE_RATE_TLV ||
+		if( NODES[id].cache_rate == CACHE_RATE_TLV ||
+		    !((NODES[id].cache < CACHE_TLV) && NODES[id].is_begin_playing) ||
 		    (CURRENT_TIME - NODES[id].pre_depart_timestamp) < DEPART_INTERVAL ){
 
 		    continue;
-
-		}else if( ( CURRENT_TIME - NODES[id].timestamp_to_join ) > 60 && NODES[id].cache < CACHE_TLV && NODES[id].cache_rate < CACHE_RATE_TLV ){
-
-		    System.out.println("Node "+id+" cache_rate :"+NODES[id].cache_rate);
-
-		    reconnect_list.add(id);
 
 		}
 		else{
@@ -789,7 +784,7 @@ public class Simulation extends JPanel{
 			NODES[id].cache_rate = (NODES[id].cache - prev_cache) / ( BUFFER * dt_ms ) + 1;
 			NODES[id].cache_rate = Math.min(1,NODES[id].cache_rate);
 			NODES[id].cache_rate = Math.max(0,NODES[id].cache_rate);
-			System.out.println( "NODE cache rate:" + NODES[id].cache_rate);
+			//System.out.println( "NODE cache rate:" + NODES[id].cache_rate);
 
 		    }else{
 			
@@ -798,7 +793,7 @@ public class Simulation extends JPanel{
 			NODES[id].cache_rate = (NODES[id].cache - prev_cache) / ( BUFFER * dt_ms ) + 1; 
 			NODES[id].cache_rate = Math.min(1,NODES[id].cache_rate);
 			NODES[id].cache_rate = Math.max(0,NODES[id].cache_rate);
-			System.out.println( "NODE cache rate:" + NODES[id].cache_rate);
+			//System.out.println( "NODE cache rate:" + NODES[id].cache_rate);
 
 			if( NODES[id].cache >= DEFAULT_CACHE ){
 		
@@ -917,7 +912,16 @@ public class Simulation extends JPanel{
 		    int id = this.LAYER_LIST.get(layer).get(id_onlayer);
 
 		    int blue_value = (int)( NODES[id].cache_rate * 255 );
-		    System.out.println("cache_rate:"+NODES[id].cache_rate);
+
+		    if( NODES[id].cache < 0 ){
+
+			printNode(id);
+			System.out.println("Node re count " + NODES[id].reconnect_count );
+			System.exit(1);
+
+		    }
+
+		    //System.out.println("cache_rate:"+NODES[id].cache_rate);
 		    blue_value = Math.min(255,blue_value);
 		    blue_value = Math.max(0,blue_value);
 		    
