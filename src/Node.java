@@ -7,7 +7,10 @@ public class Node{
     double capacity;
 
     //The number of packet
-    double cache; 
+    double cache;
+    
+    //The cache rate
+    double cache_rate;
 
     //x y on the figure
     Point2D.Double pos;

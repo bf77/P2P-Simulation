@@ -63,15 +63,17 @@ public class Simulation extends JPanel{
 
     static final int TMP_MAX_CHILD = 2;
 
-    static final double CACHE_TLV = 200.0d;
+    static final double CACHE_TLV = 80.0d;
 
-    static final double DEFAULT_CACHE = 500.0d;
+    static final double DEFAULT_CACHE = 100.0d;
+
+    static final double CACHE_RATE_TLV = 0.90d;
 
     //The Bound of the time to join ( 0~10 min )
     static final int BOUND_TIME_JOIN = 1000 * 60;
 
     //ms
-    long DEPART_INTERVAL = 3;
+    long DEPART_INTERVAL = 10;
 
     ArrayList<IntegerList> LAYER_LIST;
 
@@ -102,7 +104,7 @@ public class Simulation extends JPanel{
 		sim.nodeParticipation( dt_ms );
 		sim.nodeReconnect( dt_ms );
 		sim.nodeStreaming( dt_ms );
-
+		
 	    }
 
 	    sim.repaint();
@@ -180,6 +182,7 @@ public class Simulation extends JPanel{
 	    //Init value
 	    NODES[i].layer = 0;
        	    NODES[i].cache = 0.0d;
+	    NODES[i].cache_rate = 0.0d;
 	    NODES[i].played_buffer = 0.0d;
 	    NODES[i].total_buffer = 0.0d;
 	    NODES[i].pre_depart_timestamp = 0;
@@ -253,6 +256,8 @@ public class Simulation extends JPanel{
 	int next_id=0;
 
 	for( int id=0 ; id<MAX_NODE ; id++ ){
+	    
+	    next_id = -1;
 
 	    //Whether Nodes can join
 	    if( CURRENT_TIME < NODES[id].timestamp_to_join )
@@ -273,7 +278,7 @@ public class Simulation extends JPanel{
 		    rnd_int = rnd.nextInt( OS.child_num + 1 );
 		    System.out.println("rnd:"+rnd_int+" layer:"+layer);
 		    
-		    //[rnd_int]==0 -> Set as my child
+		    //[rnd_int]==0 -> Set as OS's child
 		    if( rnd_int > 0 ){
 			
 			next_id = OS.child_id.get(rnd_int-1);
@@ -287,14 +292,14 @@ public class Simulation extends JPanel{
 			OS.child_id.add(id);
 			
 			NODES[id].parent_id = OS_ID;
-			NODES[id].layer = layer + 1;
+			NODES[id].layer = 1;
 			NODES[id].first_block_id = OS.next_block_id;
 			NODES[id].prev_block_id = NODES[id].first_block_id;
 			NODES[id].pre_depart_timestamp = CURRENT_TIME;
 			NODES[id].connected_list.add(OS_ID);
 			
 			//Update layer list
-			if( (layer+1) > MAX_LAYER ){
+			if( 1 > MAX_LAYER ){
 			    
 			    LAYER_LIST.add( new IntegerList() );
 			    MAX_LAYER++;
@@ -302,17 +307,24 @@ public class Simulation extends JPanel{
 			}
 			
 			//Store node's id to the first layer
-			LAYER_LIST.get(layer+1).add(id);
+			LAYER_LIST.get(1).add(id);
 			
-			System.out.println("Node "+id+" on Layer "+ (layer+1));
+			System.out.println("Node "+id+" on Layer "+ 1);
 			break;
+
+		    }else{
+			
+			System.out.println("The children status of OS is full ...");
+			rnd_int = rnd.nextInt( OS.child_num ) + 1;
+			System.out.println("rnd:"+rnd_int+" layer:"+layer);
+			next_id = OS.child_id.get(rnd_int-1);
+			continue;
 
 		    }
 		    
 		}//layer 2~10
 		else{
-		    
-		    
+		    		    
 		    int parent_id = next_id;
 		    System.out.println("parent_id:"+parent_id+" layer:"+layer);
 		    
@@ -329,7 +341,7 @@ public class Simulation extends JPanel{
 		    
 		    //Check cache
 		    if( NODES[parent_id].cache < DEFAULT_CACHE )	    
-			break;
+ 			break;
 		    
 		    //Check the number of children 
 		    if( NODES[parent_id].child_num < NODES[parent_id].max_child_num ){
@@ -360,6 +372,15 @@ public class Simulation extends JPanel{
 			//Print
 			System.out.println("Node "+id+" on Layer "+(layer+1));
 			
+		    }else{
+
+			System.out.println("The number of children Node "+parent_id+" has is "+NODES[parent_id].child_num+" ...");
+			System.out.println("The children status of Node "+parent_id+" is full ...");
+			rnd_int = rnd.nextInt( NODES[parent_id].child_num ) + 1;
+			System.out.println("rnd:"+rnd_int+" layer:"+layer);
+			next_id = NODES[parent_id].child_id.get(rnd_int-1);
+			continue;
+
 		    }
 
 		    break;
@@ -386,6 +407,9 @@ public class Simulation extends JPanel{
 
 	    if( layer > MAX_LAYER )
 		break;
+
+	    if( layer < 0 )
+		continue;
 
 	    for( int i=0 ; i<LAYER_LIST.get(layer).size() ; i++ )
 		connect_list.add( LAYER_LIST.get(layer).get(i) );
@@ -472,15 +496,21 @@ public class Simulation extends JPanel{
 
 		int id = LAYER_LIST.get(layer).get(id_onlayer);
 
-		if( NODES[id].cache > CACHE_TLV || 
-		    !NODES[id].is_begin_playing || 
+		if( NODES[id].cache_rate > CACHE_RATE_TLV ||
 		    (CURRENT_TIME - NODES[id].pre_depart_timestamp) < DEPART_INTERVAL ){
 
 		    continue;
 
+		}else if( ( CURRENT_TIME - NODES[id].timestamp_to_join ) > 60 && NODES[id].cache < CACHE_TLV && NODES[id].cache_rate < CACHE_RATE_TLV ){
+
+		    System.out.println("Node "+id+" cache_rate :"+NODES[id].cache_rate);
+
+		    reconnect_list.add(id);
+
 		}
 		else{
-
+		    
+		    System.out.println("Node "+id+" cache_rate :"+NODES[id].cache_rate);
 		    reconnect_list.add(id);
 		    
 		}
@@ -511,6 +541,7 @@ public class Simulation extends JPanel{
 		    System.out.println("Not found candidate id...");
 		    NODES[id].reconnect_count++;
 		    NODES[id].list_range++;
+		    NODES[id].list_range = Math.max( NODES[id].list_range , MAX_LAYER - 1 );
 		    //System.exit(0);
 		    break;
 
@@ -553,6 +584,7 @@ public class Simulation extends JPanel{
 			//Print
 			System.out.println("Node "+id+" on Layer "+ NODES[id].layer);
 			is_connect_successful = true;
+			NODES[id].connected_list.add(candidate_id);
 			
 			for( int i=0 ; i<NODES[id].child_num ; i++ ){
 			    layerAjustment( NODES[id].child_id.get(i) );
@@ -635,6 +667,7 @@ public class Simulation extends JPanel{
 			//Print
 			System.out.println("Node "+id+" on Layer "+ NODES[id].layer);
 			is_connect_successful = true;
+			NODES[id].connected_list.add(candidate_id);
 			
 			for( int i=0 ; i<NODES[id].child_num ; i++ ){
 			    layerAjustment( NODES[id].child_id.get(i) );
@@ -692,6 +725,8 @@ public class Simulation extends JPanel{
 
     public void nodeStreaming( long dt_ms ){
 	
+	System.out.println("nodeStreaming()...");
+
 	for(int layer=0 ; layer<=MAX_LAYER ; layer++ ){
 	    
 	    int node_num_onlayer = LAYER_LIST.get(layer).size();
@@ -749,12 +784,22 @@ public class Simulation extends JPanel{
 		    if( NODES[id].is_begin_playing ){
 			
 			NODES[id].played_buffer += BUFFER * dt_ms;
-			NODES[id].cache =  ( NODES[id].total_buffer - NODES[id].played_buffer ) / MAX_PACKET_BYTE;
-			
+			double prev_cache = NODES[id].cache;
+			NODES[id].cache = ( NODES[id].total_buffer - NODES[id].played_buffer ) / MAX_PACKET_BYTE;
+			NODES[id].cache_rate = (NODES[id].cache - prev_cache) / ( BUFFER * dt_ms ) + 1;
+			NODES[id].cache_rate = Math.min(1,NODES[id].cache_rate);
+			NODES[id].cache_rate = Math.max(0,NODES[id].cache_rate);
+			System.out.println( "NODE cache rate:" + NODES[id].cache_rate);
+
 		    }else{
 			
+			double prev_cache = NODES[id].cache;
 			NODES[id].cache = total_block_id;
-			
+			NODES[id].cache_rate = (NODES[id].cache - prev_cache) / ( BUFFER * dt_ms ) + 1; 
+			NODES[id].cache_rate = Math.min(1,NODES[id].cache_rate);
+			NODES[id].cache_rate = Math.max(0,NODES[id].cache_rate);
+			System.out.println( "NODE cache rate:" + NODES[id].cache_rate);
+
 			if( NODES[id].cache >= DEFAULT_CACHE ){
 		
 			    NODES[id].is_begin_playing = true;
@@ -787,6 +832,8 @@ public class Simulation extends JPanel{
 	    
 	}//end layer 
 	
+	System.out.println("nodeStreaming() end...");
+
     }//end function
     
     public void printNode( int id ){
@@ -795,6 +842,7 @@ public class Simulation extends JPanel{
 	System.out.println("Capacity:"+NODES[id].capacity);
 	System.out.println("Total buffer:"+NODES[id].total_buffer);
 	System.out.println("Cache:"+NODES[id].cache);
+	System.out.println("Cache rate:"+NODES[id].cache_rate);
 	System.out.println("Played buffer:"+NODES[id].played_buffer);
 	System.out.println("The first block id:"+NODES[id].first_block_id);
 	System.out.println("The previous block id:"+NODES[id].prev_block_id);
@@ -868,10 +916,11 @@ public class Simulation extends JPanel{
 		    
 		    int id = this.LAYER_LIST.get(layer).get(id_onlayer);
 
-		    int blue_value = (int)(255 * NODES[id].cache / DEFAULT_CACHE);
+		    int blue_value = (int)( NODES[id].cache_rate * 255 );
+		    System.out.println("cache_rate:"+NODES[id].cache_rate);
 		    blue_value = Math.min(255,blue_value);
 		    blue_value = Math.max(0,blue_value);
-
+		    
 		    g2.setPaint(new Color(255-blue_value,0,blue_value));
 		    
 		    this.NODES[id].pos.setLocation( 50.0d + (id_onlayer+1)*width_onlayer , 70*layer );
