@@ -67,13 +67,13 @@ public class Simulation extends JPanel{
 
     static final double DEFAULT_CACHE = 200.0d;
 
-    static final double CACHE_RATE_TLV = 1.0d;
+    static final double CACHE_RATE_TLV = 0.99d;
 
     //The Bound of the time to join ( 0~10 min )
     static final int BOUND_TIME_JOIN = 1000 * 60;
 
     //ms
-    long DEPART_INTERVAL = 10;
+    long DEPART_INTERVAL = 5;
 
     ArrayList<IntegerList> LAYER_LIST;
 
@@ -255,6 +255,9 @@ public class Simulation extends JPanel{
 	int rnd_int=0;
 	int next_id=0;
 
+	OS.prev_block_id = (CURRENT_TIME - dt_ms) * BUFFER / MAX_PACKET_BYTE;
+	OS.next_block_id = CURRENT_TIME * BUFFER / MAX_PACKET_BYTE;
+
 	for( int id=0 ; id<MAX_NODE ; id++ ){
 	    
 	    next_id = -1;
@@ -271,9 +274,6 @@ public class Simulation extends JPanel{
 		
 		//layer 1
 		if( layer==0 ){
-		    
-		    OS.prev_block_id = (CURRENT_TIME - dt_ms) * BUFFER / MAX_PACKET_BYTE;
-		    OS.next_block_id = CURRENT_TIME * BUFFER / MAX_PACKET_BYTE;
 		    
 		    rnd_int = rnd.nextInt( OS.child_num + 1 );
 		    System.out.println("rnd:"+rnd_int+" layer:"+layer);
@@ -451,15 +451,19 @@ public class Simulation extends JPanel{
 	System.out.println();
     }
 
-    public void layerAjustment( int id ){
+    public boolean layerAjustment( int id ){
 
+	boolean is_have_children = false;
 	int parent_id = NODES[id].parent_id;
 
 	//Depart form the current layer
 	int id_onlayer = LAYER_LIST.get(NODES[id].layer).indexOf(id);
 	LAYER_LIST.get(NODES[id].layer).remove( id_onlayer );
 
-	NODES[id].layer = NODES[parent_id].layer + 1;
+	if( parent_id == OS_ID )
+	    NODES[id].layer = 1;
+	else
+	    NODES[id].layer = NODES[parent_id].layer + 1;
 
 	//Update layer list
 	if( NODES[id].layer > MAX_LAYER ){
@@ -472,18 +476,16 @@ public class Simulation extends JPanel{
 	//Regist id to layer_list
 	LAYER_LIST.get(NODES[id].layer).add(id);
 
-	for( int i=0 ; i<NODES[id].child_num ; i++ ){
+	if( NODES[id].child_num > 0 )
+	    is_have_children = true;
 
-	    int child_id = NODES[id].child_id.get(i);
-	    layerAjustment( child_id );
-
-	}
+	return is_have_children;
 
     }
 
     public void nodeReconnect( long dt_ms ){
 
-	System.out.println("nodeReconnect()...");
+	//	System.out.println("nodeReconnect()...");
 
 	if( MAX_LAYER == 0 )
 	    return;
@@ -506,6 +508,7 @@ public class Simulation extends JPanel{
 		else{
 		    
 		    System.out.println("Node "+id+" cache_rate :"+NODES[id].cache_rate);
+		    printNode(id);
 		    reconnect_list.add(id);
 		    
 		}
@@ -542,7 +545,7 @@ public class Simulation extends JPanel{
 
 		}else{
 
-		    System.out.println("candidate id "+candidate_id);
+		    //System.out.println("candidate id "+candidate_id);
 
 		}
 
@@ -581,10 +584,24 @@ public class Simulation extends JPanel{
 			is_connect_successful = true;
 			NODES[id].connected_list.add(candidate_id);
 			
-			for( int i=0 ; i<NODES[id].child_num ; i++ ){
-			    layerAjustment( NODES[id].child_id.get(i) );
-			}
+			//The status of layerAjustment()
+			boolean status = true;
+			ArrayList<Integer> ajustment_list = new ArrayList<Integer>();
+			ajustment_list.add(id);
 			
+			for( int i=0 ; i < ajustment_list.size() ; i++ ){
+
+			    int id_on_alist = ajustment_list.get(i);
+
+			    for( int id_onnode=0 ; id_onnode < NODES[id_on_alist].child_num ; id_onnode++ ){
+			    
+				if( layerAjustment( NODES[id_on_alist].child_id.get(id_onnode) ) )
+				    ajustment_list.add(NODES[id_on_alist].child_id.get(id_onnode));
+				
+			    }
+
+			}
+							    
 		    }else{
 			
 			if( !NODES[id].connected_list.contains(candidate_id) )
@@ -664,8 +681,22 @@ public class Simulation extends JPanel{
 			is_connect_successful = true;
 			NODES[id].connected_list.add(candidate_id);
 			
-			for( int i=0 ; i<NODES[id].child_num ; i++ ){
-			    layerAjustment( NODES[id].child_id.get(i) );
+			//The status of layerAjustment()
+			boolean status = true;
+			ArrayList<Integer> ajustment_list = new ArrayList<Integer>();
+			ajustment_list.add(id);
+			
+			for( int i=0 ; i < ajustment_list.size() ; i++ ){
+
+			    int id_on_alist = ajustment_list.get(i);
+
+			    for( int id_onnode=0 ; id_onnode < NODES[id_on_alist].child_num ; id_onnode++ ){
+			    
+				if( layerAjustment( NODES[id_on_alist].child_id.get(id_onnode) ) )
+				    ajustment_list.add(NODES[id_on_alist].child_id.get(id_onnode));
+				
+			    }
+
 			}
 			
 		    }
@@ -687,7 +718,7 @@ public class Simulation extends JPanel{
 	    
 	}//end reconnect list for
 
-	System.out.println("nodeReconnect() end...");
+	//System.out.println("nodeReconnect() end...");
 
     }//end function
 	
@@ -720,7 +751,7 @@ public class Simulation extends JPanel{
 
     public void nodeStreaming( long dt_ms ){
 	
-	System.out.println("nodeStreaming()...");
+	//System.out.println("nodeStreaming()...");
 
 	for(int layer=0 ; layer<=MAX_LAYER ; layer++ ){
 	    
@@ -739,9 +770,8 @@ public class Simulation extends JPanel{
 		    
 		    //Determine the min value
 		    NODES[child_id].max_down_Bpms = Math.min( max_capacity_Bpms , pair_Bpms );
-		    NODES[child_id].max_down_Bpms = Math.min( NODES[child_id].max_down_Bpms , BUFFER );
-		    
-		    
+		    //NODES[child_id].max_down_Bpms = Math.min( NODES[child_id].max_down_Bpms , BUFFER );
+		    		    
 		}//end for childnum
 		
 	    }//-- Layer 1~X --
@@ -767,30 +797,168 @@ public class Simulation extends JPanel{
 		    }
 		    
 		    //--Buffer processing--
-		    double downloaded_data = Math.min( max_capacity_Bpms , NODES[id].max_down_Bpms ) * dt_ms;
-		    NODES[id].total_buffer += downloaded_data;
+		    double downloaded_data;
+		    double total_block_id = -1;
+
+		    int parent_id = NODES[id].parent_id;
+
+		    if( NODES[id].cache < DEFAULT_CACHE ){
+
+			double dt_id;
+			double current_Bpms;
+		
+			//OS
+			if( parent_id == OS_ID ){
+			    
+			    dt_id = OS.next_block_id - NODES[id].next_block_id;
+			    
+			    //dt_id is sufficient
+			    if( dt_id > ( (BUFFER * dt_ms)/MAX_PACKET_BYTE ) ){
+								
+				current_Bpms = Math.min( max_capacity_Bpms , NODES[id].max_down_Bpms );
+						  	
+			    }//not sufficient
+			    else{
+			
+				current_Bpms = Math.min( max_capacity_Bpms , NODES[id].max_down_Bpms );
+				current_Bpms = Math.min( current_Bpms , BUFFER );
+				
+			    }//end sufficient or not
+
+			    downloaded_data = current_Bpms * dt_ms;
+			    NODES[id].total_buffer += downloaded_data;
+			    total_block_id = NODES[id].total_buffer / MAX_PACKET_BYTE;
+			    
+			    NODES[id].prev_block_id = NODES[id].next_block_id;
+			    NODES[id].next_block_id = NODES[id].first_block_id + total_block_id;
+			    
+			    //Check the limit value
+			    if( NODES[id].next_block_id > OS.next_block_id ){
+				
+				NODES[id].next_block_id = OS.next_block_id;
+				total_block_id = NODES[id].next_block_id - NODES[id].first_block_id;
+				NODES[id].total_buffer = total_block_id * MAX_PACKET_BYTE;
+				
+			    }
+			    
+			}//Node
+			else{
+			    
+			    dt_id = NODES[parent_id].next_block_id - NODES[id].next_block_id;
+			    
+			    //dt_id is sufficient
+			    if( dt_id > ( (BUFFER * dt_ms)/MAX_PACKET_BYTE ) ){
+
+				current_Bpms = Math.min( max_capacity_Bpms , NODES[id].max_down_Bpms );
+				
+			    }//not sufficient
+			    else{
+				
+				current_Bpms = Math.min( max_capacity_Bpms , NODES[id].max_down_Bpms );
+				current_Bpms = Math.min( current_Bpms , BUFFER );
+				
+			    }//end sufficient or not
+			    
+			    downloaded_data = current_Bpms * dt_ms;
+			    NODES[id].total_buffer += downloaded_data;
+			    total_block_id = NODES[id].total_buffer / MAX_PACKET_BYTE;
+			    
+			    NODES[id].prev_block_id = NODES[id].next_block_id;
+			    NODES[id].next_block_id = NODES[id].first_block_id + total_block_id;
+			    
+			    //Check the limit value
+			    if( NODES[id].next_block_id > NODES[parent_id].next_block_id ){
+				
+				NODES[id].next_block_id = NODES[parent_id].next_block_id;
+				total_block_id = NODES[id].next_block_id - NODES[id].first_block_id;
+				NODES[id].total_buffer = total_block_id * MAX_PACKET_BYTE;
+				
+			    }
+			    
+			}//end OS or not
+
+		    }//Cache ok
+		    else{
+
+			double current_Bpms;
+			current_Bpms = Math.min( max_capacity_Bpms , NODES[id].max_down_Bpms );
+			current_Bpms = Math.min( current_Bpms , BUFFER );
+			downloaded_data = current_Bpms * dt_ms;			    
+			NODES[id].total_buffer += downloaded_data;
+			total_block_id = NODES[id].total_buffer / MAX_PACKET_BYTE;
+			
+			NODES[id].prev_block_id = NODES[id].next_block_id;
+			NODES[id].next_block_id = NODES[id].first_block_id + total_block_id;
+			
+			//OS
+			if( parent_id == OS_ID ){
+
+			    //Check the limit value
+			    if( NODES[id].next_block_id > OS.next_block_id ){
+				
+				NODES[id].next_block_id = OS.next_block_id;
+				total_block_id = NODES[id].next_block_id - NODES[id].first_block_id;
+				NODES[id].total_buffer = total_block_id * MAX_PACKET_BYTE;
+				
+			    }
+			
+			}//Node
+			else{
+
+			    //Check the limit value
+			    if( NODES[id].next_block_id > NODES[parent_id].next_block_id ){
+				
+				NODES[id].next_block_id = NODES[parent_id].next_block_id;
+				total_block_id = NODES[id].next_block_id - NODES[id].first_block_id;
+				NODES[id].total_buffer = total_block_id * MAX_PACKET_BYTE;
+				
+			    }
+
+			}//end OS or not
+			
+		    }
+
+		    if( NODES[id].first_block_id > NODES[id].next_block_id ){
+			printNode(id);
+			printNode(NODES[id].parent_id);
+			System.out.println("Node re count " + NODES[id].reconnect_count );
+			System.exit(1);
+		    }
 		    
-		    double total_block_id = NODES[id].total_buffer / MAX_PACKET_BYTE;
+		    if( NODES[id].cache < 0 ){
+
+			printNode(id);
+			printNode(NODES[id].parent_id);
+			System.out.println("Cache 0");
+			System.exit(1);
+
+		    }
 		    
-		    NODES[id].prev_block_id = NODES[id].next_block_id;
-		    NODES[id].next_block_id = NODES[id].first_block_id + total_block_id;
-		    
+
 		    //--Cache processing--
 		    if( NODES[id].is_begin_playing ){
 			
 			NODES[id].played_buffer += BUFFER * dt_ms;
 			double prev_cache = NODES[id].cache;
 			NODES[id].cache = ( NODES[id].total_buffer - NODES[id].played_buffer ) / MAX_PACKET_BYTE;
+
+			if(NODES[id].cache_rate > 0.99) 
+			    NODES[id].cache_rate = 1.0d;
+			
 			NODES[id].cache_rate = (NODES[id].cache - prev_cache) / ( BUFFER * dt_ms ) + 1;
 			NODES[id].cache_rate = Math.min(1,NODES[id].cache_rate);
 			NODES[id].cache_rate = Math.max(0,NODES[id].cache_rate);
 			//System.out.println( "NODE cache rate:" + NODES[id].cache_rate);
-
+			
 		    }else{
 			
 			double prev_cache = NODES[id].cache;
 			NODES[id].cache = total_block_id;
-			NODES[id].cache_rate = (NODES[id].cache - prev_cache) / ( BUFFER * dt_ms ) + 1; 
+			NODES[id].cache_rate = (NODES[id].cache - prev_cache) / ( BUFFER * dt_ms ) + 1;
+
+			if(NODES[id].cache_rate > 0.99) 
+			    NODES[id].cache_rate = 1.0d;
+
 			NODES[id].cache_rate = Math.min(1,NODES[id].cache_rate);
 			NODES[id].cache_rate = Math.max(0,NODES[id].cache_rate);
 			//System.out.println( "NODE cache rate:" + NODES[id].cache_rate);
@@ -802,12 +970,7 @@ public class Simulation extends JPanel{
 			}
 			
 		    }
-		    
-		    //For output
-		    //if( layer==1 )
-		    //printNode(id);
-		    
-		    
+		    		    
 		    //--Processing for the children ids that the node id has 
 		    
 		    for( int i=0 ; i<NODES[id].child_num ; i++ ){
@@ -816,8 +979,8 @@ public class Simulation extends JPanel{
 			double pair_Bpms = nodeCombinationBW( child_id , id ) * 1000 / 8 ;
 			
 			//Determine the min value
-			NODES[child_id].max_down_Bpms = Math.min( max_capacity_Bpms , BUFFER );
-			NODES[child_id].max_down_Bpms = Math.min( NODES[child_id].max_down_Bpms , pair_Bpms );
+			//NODES[child_id].max_down_Bpms = Math.min( max_capacity_Bpms , BUFFER );
+			NODES[child_id].max_down_Bpms = Math.min( max_capacity_Bpms , pair_Bpms );
 			
 		    }//end i for
 		    
@@ -827,7 +990,7 @@ public class Simulation extends JPanel{
 	    
 	}//end layer 
 	
-	System.out.println("nodeStreaming() end...");
+	//System.out.println("nodeStreaming() end...");
 
     }//end function
     
@@ -906,20 +1069,22 @@ public class Simulation extends JPanel{
 		
 		int node_num_onlayer = this.LAYER_LIST.get(layer).size();
 		double width_onlayer = (this.WIDTH-150-50)*1.0 / (node_num_onlayer+1);
-		
+
 		for( int id_onlayer=0; id_onlayer<node_num_onlayer ; id_onlayer++ ){
 		    
 		    int id = this.LAYER_LIST.get(layer).get(id_onlayer);
 
-		    int blue_value = (int)( NODES[id].cache_rate * 255 );
+		    int blue_value = (int)( ( NODES[id].cache / DEFAULT_CACHE ) * 255 );
 
-		    if( NODES[id].cache < 0 ){
+		    /*
+		    if( NODES[id].cache < CACHE_TLV ){
 
 			printNode(id);
-			System.out.println("Node re count " + NODES[id].reconnect_count );
-			System.exit(1);
-
+			
+			System.out.println("warning!!");
+			
 		    }
+		    */
 
 		    //System.out.println("cache_rate:"+NODES[id].cache_rate);
 		    blue_value = Math.min(255,blue_value);
