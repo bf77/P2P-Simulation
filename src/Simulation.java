@@ -8,6 +8,7 @@ import java.awt.Point;
 import java.awt.geom.*;
 import java.util.Random;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 public class Simulation extends JPanel{
 
@@ -15,10 +16,10 @@ public class Simulation extends JPanel{
     static final int HEIGHT = 800;
     static final float STROKE = 2.0f;
 
-    static final int MAX_NODE = 1022;
+    static final int MAX_NODE = 2000;
 
     //Including Origin Source
-    static final int PAIRS_NUM = ( MAX_NODE * (MAX_NODE + 1) )/2;
+    //static final int PAIRS_NUM = ( MAX_NODE * (MAX_NODE + 1) )/2;
 
     //1~200 The Bound of the BW
     static final int BOUND = 199;
@@ -41,7 +42,7 @@ public class Simulation extends JPanel{
     long PRE_TIMESTAMP;
     
     //Bandwidth
-    double[] BW_PAIRS;
+    HashMap<Integer,Double> BW_PAIRS;
 
     //Origin Source
     OriginSrc OS;
@@ -144,23 +145,7 @@ public class Simulation extends JPanel{
 	Random rnd = new Random();
 
 	//-Bandwidth between pairs--
-	BW_PAIRS = new double[PAIRS_NUM];
-
-	int cnt = 0;
-
-	//Including Origin Source
-	for( int i=0 ; i<(MAX_NODE) ; i++ ){
-
-	    for( int j=(i+1) ; j<(MAX_NODE + 1) ; j++ ){
-		
-		//1~X Mbps
-		BW_PAIRS[cnt] = rnd.nextDouble()*BOUND + 1;
-		//System.out.println("Pairs ["+i+","+j+"]:"+BW_PAIRS[i]);
-		cnt++;
-
-	    }
-
-	}
+	BW_PAIRS = new HashMap<Integer,Double>();
 
 	//--Node--
 	NODES = new Node[MAX_NODE];
@@ -309,15 +294,17 @@ public class Simulation extends JPanel{
 			
 			//Store node's id to the first layer
 			LAYER_LIST.get(1).add(id);
-			
-			System.out.println("Node "+id+" on Layer "+ 1);
+			if( !BW_PAIRS.containsKey( nodeCombinationKey( id , OS_ID ) ) )
+			    BW_PAIRS.put( nodeCombinationKey( id , OS_ID ) , rnd.nextDouble()*BOUND + 1 );
+						
+			//System.out.println("Node "+id+" on Layer "+ 1);
 			break;
 
 		    }else{
 			
-			System.out.println("The children status of OS is full ...");
+			//System.out.println("The children status of OS is full ...");
 			rnd_int = rnd.nextInt( OS.child_num ) + 1;
-			System.out.println("rnd:"+rnd_int+" layer:"+layer);
+			//System.out.println("rnd:"+rnd_int+" layer:"+layer);
 			next_id = OS.child_id.get(rnd_int-1);
 			continue;
 
@@ -327,7 +314,7 @@ public class Simulation extends JPanel{
 		else{
 		    		    
 		    int parent_id = next_id;
-		    System.out.println("parent_id:"+parent_id+" layer:"+layer);
+		    //System.out.println("parent_id:"+parent_id+" layer:"+layer);
 		    
 		    //Proceccing related to random
 		    rnd_int = rnd.nextInt( NODES[parent_id].child_num + 1 );
@@ -335,7 +322,7 @@ public class Simulation extends JPanel{
 		    if( rnd_int > 0 ){
 			
 			next_id = NODES[parent_id].child_id.get(rnd_int-1);
-			System.out.println("next layer:"+NODES[next_id].layer);
+			//System.out.println("next layer:"+NODES[next_id].layer);
 			continue;
 			
 		    }
@@ -370,16 +357,18 @@ public class Simulation extends JPanel{
 			
 			//Regist id to layer_list
 			LAYER_LIST.get(layer+1).add(id);
+			if( !BW_PAIRS.containsKey( nodeCombinationKey( id , parent_id ) ) )
+			    BW_PAIRS.put( nodeCombinationKey( id , parent_id ) , rnd.nextDouble()*BOUND + 1 );
 			
 			//Print
-			System.out.println("Node "+id+" on Layer "+(layer+1));
+			//System.out.println("Node "+id+" on Layer "+(layer+1));
 			
 		    }else{
 
-			System.out.println("The number of children Node "+parent_id+" has is "+NODES[parent_id].child_num+" ...");
-			System.out.println("The children status of Node "+parent_id+" is full ...");
+			//System.out.println("The number of children Node "+parent_id+" has is "+NODES[parent_id].child_num+" ...");
+			//System.out.println("The children status of Node "+parent_id+" is full ...");
 			rnd_int = rnd.nextInt( NODES[parent_id].child_num ) + 1;
-			System.out.println("rnd:"+rnd_int+" layer:"+layer);
+			//System.out.println("rnd:"+rnd_int+" layer:"+layer);
 			next_id = NODES[parent_id].child_id.get(rnd_int-1);
 			continue;
 
@@ -489,6 +478,8 @@ public class Simulation extends JPanel{
 
 	//	System.out.println("nodeReconnect()...");
 
+	Random rnd = new Random();
+
 	if( MAX_LAYER == 0 )
 	    return;
 
@@ -540,7 +531,8 @@ public class Simulation extends JPanel{
 
 		    System.out.println("Not found candidate id...");
 		    NODES[id].reconnect_count++;
-		    NODES[id].list_range++;
+		    NODES[id].list_range = (NODES[id].reconnect_count / 5);
+
 		    NODES[id].list_range = Math.max( NODES[id].list_range , MAX_LAYER - 1 );
 		    //System.exit(0);
 		    break;
@@ -580,9 +572,11 @@ public class Simulation extends JPanel{
 			
 			//Regist id to layer_list
 			LAYER_LIST.get(NODES[id].layer).add(id);
+			if( !BW_PAIRS.containsKey( nodeCombinationKey( id , OS_ID ) ) )
+			    BW_PAIRS.put( nodeCombinationKey( id , OS_ID ) , rnd.nextDouble()*BOUND + 1 );
 			
 			//Print
-			System.out.println("Node "+id+" on Layer "+ NODES[id].layer);
+			//System.out.println("Node "+id+" on Layer "+ NODES[id].layer);
 			is_connect_successful = true;
 			NODES[id].connected_list.add(candidate_id);
 
@@ -679,9 +673,11 @@ public class Simulation extends JPanel{
 			
 			//Regist id to layer_list
 			LAYER_LIST.get(NODES[id].layer).add(id);
+			if( !BW_PAIRS.containsKey( nodeCombinationKey( id , parent_id ) ) )
+			    BW_PAIRS.put( nodeCombinationKey( id , parent_id ) , rnd.nextDouble()*BOUND + 1 );
 			
 			//Print
-			System.out.println("Node "+id+" on Layer "+ NODES[id].layer);
+			//System.out.println("Node "+id+" on Layer "+ NODES[id].layer);
 			is_connect_successful = true;
 			NODES[id].connected_list.add(candidate_id);
 			
@@ -730,12 +726,27 @@ public class Simulation extends JPanel{
 	
     public double nodeCombinationBW( int n , int m ){
 
+	System.out.println("start");
+
+	if( !BW_PAIRS.containsKey(nodeCombinationKey(n,m))){
+	    System.out.println("Key not found"+nodeCombinationKey(n,m));
+	    System.exit(1);
+	}
+
+	System.out.println("end");
+
+	return BW_PAIRS.get(nodeCombinationKey(n,m));
+
+    }
+    
+    public int nodeCombinationKey( int n , int m ){
+
 	int ret = 0;
 
 	if( n < m ){
 
 	    for( int i=0 ; i<n ; i++ )
-		ret += ( MAX_NODE - i );
+		ret += ( (MAX_NODE+1) - i );
 
 	    ret += (m - n);
 	    
@@ -743,16 +754,17 @@ public class Simulation extends JPanel{
 	else{
 	    
 	    for( int i=0 ; i<m ; i++ )
-		ret += ( MAX_NODE - i );
+		ret += ( (MAX_NODE+1) - i );
 
 	    ret += (n - m);
 
 	}
 
-	return BW_PAIRS[ret];
+	System.out.println("Key "+ret+"n:"+n+" m:"+m);
+
+	return ret;
 
     }
-    
     
 
     public void nodeStreaming( long dt_ms ){
@@ -1006,8 +1018,8 @@ public class Simulation extends JPanel{
 			NODES[id].cache_rate = Math.max(0,NODES[id].cache_rate);
 			//System.out.println( "NODE cache rate:" + NODES[id].cache_rate);
 			
-			printNode(id);
-			System.out.println( "dt_id" + dt_id);
+			//printNode(id);
+			//System.out.println( "dt_id" + dt_id);
 
 			if( NODES[id].cache >= DEFAULT_CACHE ){
 		
