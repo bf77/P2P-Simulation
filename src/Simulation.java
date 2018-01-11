@@ -1,9 +1,3 @@
-import javax.swing.*;
-import java.awt.RenderingHints;
-import java.awt.BasicStroke;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.Color;
 import java.awt.Point;
 import java.awt.geom.*;
 import java.util.Random;
@@ -16,7 +10,7 @@ public class Simulation{
     static final int HEIGHT = 800;
     static final float STROKE = 2.0f;
 
-    static final int MAX_NODE = 20000;
+    static final int MAX_NODE = 80000;
 
     //Including Origin Source
     //static final int PAIRS_NUM = ( MAX_NODE * (MAX_NODE + 1) )/2;
@@ -64,14 +58,16 @@ public class Simulation{
 
     static final int TMP_MAX_CHILD = 2;
 
-    static final double CACHE_TLV = 160.0d;
+    static final double CACHE_TLV = 2400.0d;
 
-    static final double DEFAULT_CACHE = 200.0d;
+    static final double DEFAULT_CACHE = 3000.0d;
 
     static final double CACHE_RATE_TLV = 0.99d;
 
     //The Bound of the time to join ( 0~10 min )
     static final int BOUND_TIME_JOIN = 1000 * 60;
+
+    static final long PROCESS_INTERVAL = 10L;
 
     //ms
     long DEPART_INTERVAL = 5;
@@ -81,26 +77,28 @@ public class Simulation{
     public static void main(String[] args){
 	    
 	Simulation sim = new Simulation();
-		
+
 	sim.LAYER_LIST = new ArrayList<IntegerList>(sim.MAX_LAYER);
 	sim.initLayerList();
 	
 	sim.osInitialize();
 	sim.nodesInitialize();
 	
-	sim.TIMESTAMP = System.currentTimeMillis();
+	//sim.TIMESTAMP = System.currentTimeMillis();
 	while(true){
 	    
-	    if( sim.PRE_TIMESTAMP != sim.TIMESTAMP ){
+	    long dt_ms = sim.PROCESS_INTERVAL;
+
+	    //if( sim.PRE_TIMESTAMP != sim.TIMESTAMP ){
 		
-		long dt_ms = sim.TIMESTAMP - sim.PRE_TIMESTAMP;
-		sim.nodeParticipation( dt_ms );
-		sim.nodeReconnect( dt_ms );
-		sim.nodeStreaming( dt_ms );
+	    //long dt_ms = sim.TIMESTAMP - sim.PRE_TIMESTAMP;
+	    sim.nodeParticipation( dt_ms );
+	    sim.nodeReconnect( dt_ms );
+	    sim.nodeStreaming( dt_ms );
 		
-	    }
+		//}
 	    
-	    sim.timestampUpdate();
+	    sim.timestampUpdate( dt_ms );
 	    
 	}
 	
@@ -197,19 +195,20 @@ public class Simulation{
     }
 
 
-    public void timestampUpdate(){
+    public void timestampUpdate( long dt_ms ){
 
-	PRE_TIMESTAMP = TIMESTAMP;
-	TIMESTAMP = System.currentTimeMillis(); 
+	//PRE_TIMESTAMP = TIMESTAMP;
+	//TIMESTAMP = System.currentTimeMillis(); 
 
 	//Timestamp have not been changed
-	if( PRE_TIMESTAMP == TIMESTAMP )
-	    return;
+	//if( PRE_TIMESTAMP == TIMESTAMP )
+	//    return;
 
-	CURRENT_TIME += TIMESTAMP - PRE_TIMESTAMP; 
-	
-	//if( CURRENT_TIME > BOUND_TIME_JOIN )
-	//System.out.println("Time:"+CURRENT_TIME+"ms "+CURRENT_TIME/1000+"s");
+	//CURRENT_TIME += TIMESTAMP - PRE_TIMESTAMP; 
+	CURRENT_TIME += dt_ms;
+
+	if( CURRENT_TIME > BOUND_TIME_JOIN )
+	    System.out.println("Time:"+CURRENT_TIME+"ms "+CURRENT_TIME/1000+"s");
 
 	//System.out.println("Time:"+CURRENT_TIME+"ms "+CURRENT_TIME/1000+"s");
 	//System.out.println("Timestamp:"+TIMESTAMP+"ms");
