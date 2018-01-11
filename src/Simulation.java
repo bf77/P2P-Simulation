@@ -16,7 +16,7 @@ public class Simulation extends JPanel{
     static final int HEIGHT = 800;
     static final float STROKE = 2.0f;
 
-    static final int MAX_NODE = 2000;
+    static final int MAX_NODE = 3000;
 
     //Including Origin Source
     //static final int PAIRS_NUM = ( MAX_NODE * (MAX_NODE + 1) )/2;
@@ -54,7 +54,7 @@ public class Simulation extends JPanel{
     static final double OS_R = 30.0d;
 
     //10Mbps ->  buffer[Byte/ms]
-    static final double BUFFER = 24*1000*1.0 / 8;
+    static final double BUFFER = 12*1000*1.0 / 8;
     
     //Node
     Node[] NODES;
@@ -71,7 +71,7 @@ public class Simulation extends JPanel{
     static final double CACHE_RATE_TLV = 0.99d;
 
     //The Bound of the time to join ( 0~10 min )
-    static final int BOUND_TIME_JOIN = 1000 * 60;
+    static final int BOUND_TIME_JOIN = 1000 * 220;
 
     //ms
     long DEPART_INTERVAL = 5;
@@ -79,20 +79,20 @@ public class Simulation extends JPanel{
     ArrayList<IntegerList> LAYER_LIST;
 
     public static void main(String[] args){
-
+	    
 	JFrame frame = new JFrame();
-
+	
 	Simulation sim = new Simulation();
 	frame.getContentPane().add(sim);	
-
+	
 	frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	frame.setBounds(10, 10, sim.WIDTH , sim.HEIGHT );
 	frame.setTitle("Simulation");
 	frame.setVisible(true);
-
+	
 	sim.LAYER_LIST = new ArrayList<IntegerList>(sim.MAX_LAYER);
 	sim.initLayerList();
-		    
+	
 	sim.osInitialize();
 	sim.nodesInitialize();
 	
@@ -107,14 +107,15 @@ public class Simulation extends JPanel{
 		sim.nodeStreaming( dt_ms );
 		
 	    }
-
+	    
 	    sim.repaint();
 	    sim.timestampUpdate();
-
+	    
 	}
-
+	
+	
     }
-
+    
     public void osInitialize(){
 
 	//--Random--
@@ -123,7 +124,7 @@ public class Simulation extends JPanel{
 	OS = new OriginSrc();
 
 	OS.capacity = rnd.nextDouble()*CAPACITY + CAPACITY_INITVALUE;
-	System.out.println( "Origin Source: capacity " + OS.capacity );
+	//System.out.println( "Origin Source: capacity " + OS.capacity );
 
 	OS.child_num = 0;
 	OS.child_id = new ArrayList<Integer>();
@@ -197,8 +198,8 @@ public class Simulation extends JPanel{
 	    //Initialize
 	    NODES[i].child_id = new ArrayList<Integer>();
 
-	    System.out.print("Node "+i+":capacity "+NODES[i].capacity);
-	    System.out.println(" Timestamp to join "+NODES[i].timestamp_to_join);
+	    //System.out.print("Node "+i+":capacity "+NODES[i].capacity);
+	    //System.out.println(" Timestamp to join "+NODES[i].timestamp_to_join);
 
 	}
 	
@@ -216,9 +217,13 @@ public class Simulation extends JPanel{
 
 	CURRENT_TIME += TIMESTAMP - PRE_TIMESTAMP; 
 	
+	//if( CURRENT_TIME > BOUND_TIME_JOIN )
+	    //System.out.println("Time:"+CURRENT_TIME+"ms "+CURRENT_TIME/1000+"s");
+
 	//System.out.println("Time:"+CURRENT_TIME+"ms "+CURRENT_TIME/1000+"s");
 	//System.out.println("Timestamp:"+TIMESTAMP+"ms");
 	//System.out.println("Previous timestamp:"+PRE_TIMESTAMP+"ms");
+	
 
     }
 
@@ -261,7 +266,7 @@ public class Simulation extends JPanel{
 		if( layer==0 ){
 		    
 		    rnd_int = rnd.nextInt( OS.child_num + 1 );
-		    System.out.println("rnd:"+rnd_int+" layer:"+layer);
+		    //System.out.println("rnd:"+rnd_int+" layer:"+layer);
 		    
 		    //[rnd_int]==0 -> Set as OS's child
 		    if( rnd_int > 0 ){
@@ -296,7 +301,8 @@ public class Simulation extends JPanel{
 			LAYER_LIST.get(1).add(id);
 			if( !BW_PAIRS.containsKey( nodeCombinationKey( id , OS_ID ) ) )
 			    BW_PAIRS.put( nodeCombinationKey( id , OS_ID ) , rnd.nextDouble()*BOUND + 1 );
-						
+			//System.out.println("id:"+id+" parent_id:"+OS_ID);
+
 			//System.out.println("Node "+id+" on Layer "+ 1);
 			break;
 
@@ -359,7 +365,7 @@ public class Simulation extends JPanel{
 			LAYER_LIST.get(layer+1).add(id);
 			if( !BW_PAIRS.containsKey( nodeCombinationKey( id , parent_id ) ) )
 			    BW_PAIRS.put( nodeCombinationKey( id , parent_id ) , rnd.nextDouble()*BOUND + 1 );
-			
+			//System.out.println("id:"+id+" parent_id:"+parent_id);
 			//Print
 			//System.out.println("Node "+id+" on Layer "+(layer+1));
 			
@@ -476,7 +482,7 @@ public class Simulation extends JPanel{
 
     public void nodeReconnect( long dt_ms ){
 
-	//	System.out.println("nodeReconnect()...");
+       	//System.out.println("nodeReconnect()...");
 
 	Random rnd = new Random();
 
@@ -500,8 +506,8 @@ public class Simulation extends JPanel{
 		}
 		else{
 		    
-		    System.out.println("Node "+id+" cache_rate :"+NODES[id].cache_rate);
-		    printNode(id);
+		    //System.out.println("Node "+id+" cache_rate :"+NODES[id].cache_rate);
+		    //printNode(id);
 		    reconnect_list.add(id);
 		    
 		}
@@ -529,9 +535,9 @@ public class Simulation extends JPanel{
 
 		if( candidate_id == -1 ){
 
-		    System.out.println("Not found candidate id...");
+		    //System.out.println("Not found candidate id...");
 		    NODES[id].reconnect_count++;
-		    NODES[id].list_range = (NODES[id].reconnect_count / 5);
+		    NODES[id].list_range++;
 
 		    NODES[id].list_range = Math.max( NODES[id].list_range , MAX_LAYER - 1 );
 		    //System.exit(0);
@@ -575,6 +581,8 @@ public class Simulation extends JPanel{
 			if( !BW_PAIRS.containsKey( nodeCombinationKey( id , OS_ID ) ) )
 			    BW_PAIRS.put( nodeCombinationKey( id , OS_ID ) , rnd.nextDouble()*BOUND + 1 );
 			
+			//System.out.println("id:"+id+" parent_id:"+OS_ID);
+
 			//Print
 			//System.out.println("Node "+id+" on Layer "+ NODES[id].layer);
 			is_connect_successful = true;
@@ -613,7 +621,8 @@ public class Simulation extends JPanel{
 		    }
 
 		
-		}else{
+		}//Node
+		else{
 
 		    //Check cache
 		    if( NODES[candidate_id].cache < DEFAULT_CACHE ){	    
@@ -659,8 +668,6 @@ public class Simulation extends JPanel{
 			//Processing to child
 			NODES[id].parent_id = candidate_id;
 			NODES[id].layer = NODES[candidate_id].layer + 1;
-			//NODES[id].first_block_id = NODES[parent_id].next_block_id;
-			//NODES[id].prev_block_id = NODES[id].first_block_id;
 			NODES[id].pre_depart_timestamp = CURRENT_TIME;
 			
 			//Update layer list
@@ -673,9 +680,11 @@ public class Simulation extends JPanel{
 			
 			//Regist id to layer_list
 			LAYER_LIST.get(NODES[id].layer).add(id);
-			if( !BW_PAIRS.containsKey( nodeCombinationKey( id , parent_id ) ) )
-			    BW_PAIRS.put( nodeCombinationKey( id , parent_id ) , rnd.nextDouble()*BOUND + 1 );
+			if( !BW_PAIRS.containsKey( nodeCombinationKey( id , candidate_id ) ) )
+			    BW_PAIRS.put( nodeCombinationKey( id , candidate_id ) , rnd.nextDouble()*BOUND + 1 );
 			
+			//System.out.println("id:"+id+" parent_id:"+parent_id);
+
 			//Print
 			//System.out.println("Node "+id+" on Layer "+ NODES[id].layer);
 			is_connect_successful = true;
@@ -726,14 +735,15 @@ public class Simulation extends JPanel{
 	
     public double nodeCombinationBW( int n , int m ){
 
-	System.out.println("start");
+	//System.out.println("start");
 
 	if( !BW_PAIRS.containsKey(nodeCombinationKey(n,m))){
+	    System.out.println("n:"+n+" m:"+m);
 	    System.out.println("Key not found"+nodeCombinationKey(n,m));
 	    System.exit(1);
 	}
 
-	System.out.println("end");
+	//System.out.println("end");
 
 	return BW_PAIRS.get(nodeCombinationKey(n,m));
 
@@ -760,7 +770,7 @@ public class Simulation extends JPanel{
 
 	}
 
-	System.out.println("Key "+ret+"n:"+n+" m:"+m);
+	//System.out.println("Key "+ret+"n:"+n+" m:"+m);
 
 	return ret;
 
@@ -808,7 +818,7 @@ public class Simulation extends JPanel{
 		    if( !NODES[id].is_begin_streaming ){
 			
 			NODES[id].is_begin_streaming = true;
-			System.out.println("NODE "+id+": Begin streaming ");
+			//System.out.println("NODE "+id+": Begin streaming ");
 			continue;
 
 		    }
@@ -1034,6 +1044,7 @@ public class Simulation extends JPanel{
 		    for( int i=0 ; i<NODES[id].child_num ; i++ ){
 			
 			int child_id = NODES[id].child_id.get(i);
+			//printNode(child_id);
 			double pair_Bpms = nodeCombinationBW( child_id , id ) * 1000 / 8 ;
 			
 			//Determine the min value
@@ -1090,90 +1101,96 @@ public class Simulation extends JPanel{
     @Override
     public void paintComponent(Graphics g){
 
-	//Clear the window
-	super.paintComponent(g);
+	try{
 
-	Random rnd = new Random();
+	    //Clear the window
+	    super.paintComponent(g);
+	    
+	    Random rnd = new Random();
+	    
+	    Graphics2D g2 = (Graphics2D)g;
 
-	Graphics2D g2 = (Graphics2D)g;
-
-	//Antialiasing
-	g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, 
-			    RenderingHints.VALUE_ANTIALIAS_ON);
-
-	BasicStroke stroke = new BasicStroke(this.STROKE);
-	g2.setStroke(stroke);	
-	
-	for( int layer=0 ; layer<= this.MAX_LAYER ; layer++ ){
-
-
-	    if( layer==0 ){
+	    //Antialiasing
+	    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, 
+				RenderingHints.VALUE_ANTIALIAS_ON);
+	    
+	    BasicStroke stroke = new BasicStroke(this.STROKE);
+	    g2.setStroke(stroke);	
+	    
+	    for( int layer=0 ; layer<= this.MAX_LAYER ; layer++ ){
 		
-		//Set the position of Origin Source
-		OS.pos.setLocation( 50.0d + (this.WIDTH -150)/2.0 , 30.0d );
-
-		//g2.setPaint(Color.BLACK);
-		//g2.drawString("--Layer "+layer+"--", this.WIDTH - 150 , 70*layer );
 		
-		g2.setPaint(Color.BLUE);
-		Ellipse2D.Double origin_src = 
-		    new Ellipse2D.Double( this.OS.pos.getX() - (this.OS_R/2) , this.OS.pos.getY() - (this.OS_R/2), this.OS_R , this.OS_R );
-		g2.fill(origin_src);
+		if( layer==0 ){
 		
-	    }else{
-
-		g2.setPaint(Color.BLACK);
-		g2.drawString("--Layer "+layer+"--", this.WIDTH - 150 , 70*layer );
-		
-		int node_num_onlayer = this.LAYER_LIST.get(layer).size();
-		double width_onlayer = (this.WIDTH-150-50)*1.0 / (node_num_onlayer+1);
-
-		for( int id_onlayer=0; id_onlayer<node_num_onlayer ; id_onlayer++ ){
+		    //Set the position of Origin Source
+		    OS.pos.setLocation( 50.0d + (this.WIDTH -150)/2.0 , 30.0d );
 		    
-		    int id = this.LAYER_LIST.get(layer).get(id_onlayer);
+		    //g2.setPaint(Color.BLACK);
+		    //g2.drawString("--Layer "+layer+"--", this.WIDTH - 150 , 70*layer );
+		    
+		    g2.setPaint(Color.BLUE);
+		    Ellipse2D.Double origin_src = 
+			new Ellipse2D.Double( this.OS.pos.getX() - (this.OS_R/2) , this.OS.pos.getY() - (this.OS_R/2), this.OS_R , this.OS_R );
+		    g2.fill(origin_src);
+		    
+		}else{
+		    
+		    g2.setPaint(Color.BLACK);
+		    g2.drawString("--Layer "+layer+"--", this.WIDTH - 150 , 70*layer );
+		    
+		    int node_num_onlayer = this.LAYER_LIST.get(layer).size();
+		    double width_onlayer = (this.WIDTH-150-50)*1.0 / (node_num_onlayer+1);
+		    
+		    for( int id_onlayer=0; id_onlayer<node_num_onlayer ; id_onlayer++ ){
+		    
+			int id = this.LAYER_LIST.get(layer).get(id_onlayer);
 
-		    int blue_value = (int)( ( NODES[id].cache / DEFAULT_CACHE ) * 255 );
-
-		    /*
-		    if( NODES[id].cache < CACHE_TLV ){
-
-			printNode(id);
+			int blue_value = (int)( ( NODES[id].cache / DEFAULT_CACHE ) * 255 );
 			
+			/*
+			  if( NODES[id].cache < CACHE_TLV ){
+			  
+			  printNode(id);
+			  
 			System.out.println("warning!!");
 			
-		    }
-		    */
-
-		    //System.out.println("cache_rate:"+NODES[id].cache_rate);
-		    blue_value = Math.min(255,blue_value);
-		    blue_value = Math.max(0,blue_value);
-		    
-		    g2.setPaint(new Color(255-blue_value,0,blue_value));
-		    
-		    this.NODES[id].pos.setLocation( 50.0d + (id_onlayer+1)*width_onlayer , 70*layer );
-		    
-		    int parent_id = this.NODES[id].parent_id;
-		    
-		    if( parent_id == this.OS_ID ){
+			}
+			*/
 			
-			g2.draw(new Line2D.Double( this.NODES[id].pos.getX() , this.NODES[id].pos.getY() , this.OS.pos.getX() , this.OS.pos.getY() ));
+			//System.out.println("cache_rate:"+NODES[id].cache_rate);
+			blue_value = Math.min(255,blue_value);
+			blue_value = Math.max(0,blue_value);
 			
-		    }else{
+			g2.setPaint(new Color(255-blue_value,0,blue_value));
 			
-			g2.draw(new Line2D.Double( this.NODES[id].pos.getX() , this.NODES[id].pos.getY() , this.NODES[parent_id].pos.getX() , this.NODES[parent_id].pos.getY() ));
+			this.NODES[id].pos.setLocation( 50.0d + (id_onlayer+1)*width_onlayer , 70*layer );
 			
-		    }		
+			int parent_id = this.NODES[id].parent_id;
+			
+			if( parent_id == this.OS_ID ){
+			    
+			    g2.draw(new Line2D.Double( this.NODES[id].pos.getX() , this.NODES[id].pos.getY() , this.OS.pos.getX() , this.OS.pos.getY() ));
+			    
+			}else{
+			    
+			    g2.draw(new Line2D.Double( this.NODES[id].pos.getX() , this.NODES[id].pos.getY() , this.NODES[parent_id].pos.getX() , this.NODES[parent_id].pos.getY() ));
+			    
+			}		
+			
+			Ellipse2D.Double node = 
+			    new Ellipse2D.Double( this.NODES[id].pos.getX() - (this.NODE_R/2), this.NODES[id].pos.getY() - (this.NODE_R/2), this.NODE_R , this.NODE_R );
+			g2.fill(node);
+			
+		    }//end id_onlayer for
 		    
-		    Ellipse2D.Double node = 
-			new Ellipse2D.Double( this.NODES[id].pos.getX() - (this.NODE_R/2), this.NODES[id].pos.getY() - (this.NODE_R/2), this.NODE_R , this.NODE_R );
-		    g2.fill(node);
-		    
-		}//end id_onlayer for
+		}//end else
 		
-	    }//end else
+	    }//end layer for
 	    
-	}//end layer for
-
+	}catch(IndexOutOfBoundsException e){
+	    
+	}
+	
     }//end paintComponent()
 
 }//end class
