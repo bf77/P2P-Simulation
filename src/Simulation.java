@@ -10,13 +10,13 @@ import java.util.Random;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-public class Simulation extends JPanel{
+public class Simulation{
 
     static final int WIDTH = 1900;
     static final int HEIGHT = 800;
     static final float STROKE = 2.0f;
 
-    static final int MAX_NODE = 3000;
+    static final int MAX_NODE = 20000;
 
     //Including Origin Source
     //static final int PAIRS_NUM = ( MAX_NODE * (MAX_NODE + 1) )/2;
@@ -71,7 +71,7 @@ public class Simulation extends JPanel{
     static final double CACHE_RATE_TLV = 0.99d;
 
     //The Bound of the time to join ( 0~10 min )
-    static final int BOUND_TIME_JOIN = 1000 * 220;
+    static final int BOUND_TIME_JOIN = 1000 * 60;
 
     //ms
     long DEPART_INTERVAL = 5;
@@ -80,16 +80,8 @@ public class Simulation extends JPanel{
 
     public static void main(String[] args){
 	    
-	JFrame frame = new JFrame();
-	
 	Simulation sim = new Simulation();
-	frame.getContentPane().add(sim);	
-	
-	frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-	frame.setBounds(10, 10, sim.WIDTH , sim.HEIGHT );
-	frame.setTitle("Simulation");
-	frame.setVisible(true);
-	
+		
 	sim.LAYER_LIST = new ArrayList<IntegerList>(sim.MAX_LAYER);
 	sim.initLayerList();
 	
@@ -108,7 +100,6 @@ public class Simulation extends JPanel{
 		
 	    }
 	    
-	    sim.repaint();
 	    sim.timestampUpdate();
 	    
 	}
@@ -218,7 +209,7 @@ public class Simulation extends JPanel{
 	CURRENT_TIME += TIMESTAMP - PRE_TIMESTAMP; 
 	
 	//if( CURRENT_TIME > BOUND_TIME_JOIN )
-	    //System.out.println("Time:"+CURRENT_TIME+"ms "+CURRENT_TIME/1000+"s");
+	//System.out.println("Time:"+CURRENT_TIME+"ms "+CURRENT_TIME/1000+"s");
 
 	//System.out.println("Time:"+CURRENT_TIME+"ms "+CURRENT_TIME/1000+"s");
 	//System.out.println("Timestamp:"+TIMESTAMP+"ms");
@@ -1097,102 +1088,7 @@ public class Simulation extends JPanel{
 	System.out.println();
 
     }
-
-    @Override
-    public void paintComponent(Graphics g){
-
-	try{
-
-	    //Clear the window
-	    super.paintComponent(g);
-	    
-	    Random rnd = new Random();
-	    
-	    Graphics2D g2 = (Graphics2D)g;
-
-	    //Antialiasing
-	    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, 
-				RenderingHints.VALUE_ANTIALIAS_ON);
-	    
-	    BasicStroke stroke = new BasicStroke(this.STROKE);
-	    g2.setStroke(stroke);	
-	    
-	    for( int layer=0 ; layer<= this.MAX_LAYER ; layer++ ){
-		
-		
-		if( layer==0 ){
-		
-		    //Set the position of Origin Source
-		    OS.pos.setLocation( 50.0d + (this.WIDTH -150)/2.0 , 30.0d );
-		    
-		    //g2.setPaint(Color.BLACK);
-		    //g2.drawString("--Layer "+layer+"--", this.WIDTH - 150 , 70*layer );
-		    
-		    g2.setPaint(Color.BLUE);
-		    Ellipse2D.Double origin_src = 
-			new Ellipse2D.Double( this.OS.pos.getX() - (this.OS_R/2) , this.OS.pos.getY() - (this.OS_R/2), this.OS_R , this.OS_R );
-		    g2.fill(origin_src);
-		    
-		}else{
-		    
-		    g2.setPaint(Color.BLACK);
-		    g2.drawString("--Layer "+layer+"--", this.WIDTH - 150 , 70*layer );
-		    
-		    int node_num_onlayer = this.LAYER_LIST.get(layer).size();
-		    double width_onlayer = (this.WIDTH-150-50)*1.0 / (node_num_onlayer+1);
-		    
-		    for( int id_onlayer=0; id_onlayer<node_num_onlayer ; id_onlayer++ ){
-		    
-			int id = this.LAYER_LIST.get(layer).get(id_onlayer);
-
-			int blue_value = (int)( ( NODES[id].cache / DEFAULT_CACHE ) * 255 );
-			
-			/*
-			  if( NODES[id].cache < CACHE_TLV ){
-			  
-			  printNode(id);
-			  
-			System.out.println("warning!!");
-			
-			}
-			*/
-			
-			//System.out.println("cache_rate:"+NODES[id].cache_rate);
-			blue_value = Math.min(255,blue_value);
-			blue_value = Math.max(0,blue_value);
-			
-			g2.setPaint(new Color(255-blue_value,0,blue_value));
-			
-			this.NODES[id].pos.setLocation( 50.0d + (id_onlayer+1)*width_onlayer , 70*layer );
-			
-			int parent_id = this.NODES[id].parent_id;
-			
-			if( parent_id == this.OS_ID ){
-			    
-			    g2.draw(new Line2D.Double( this.NODES[id].pos.getX() , this.NODES[id].pos.getY() , this.OS.pos.getX() , this.OS.pos.getY() ));
-			    
-			}else{
-			    
-			    g2.draw(new Line2D.Double( this.NODES[id].pos.getX() , this.NODES[id].pos.getY() , this.NODES[parent_id].pos.getX() , this.NODES[parent_id].pos.getY() ));
-			    
-			}		
-			
-			Ellipse2D.Double node = 
-			    new Ellipse2D.Double( this.NODES[id].pos.getX() - (this.NODE_R/2), this.NODES[id].pos.getY() - (this.NODE_R/2), this.NODE_R , this.NODE_R );
-			g2.fill(node);
-			
-		    }//end id_onlayer for
-		    
-		}//end else
-		
-	    }//end layer for
-	    
-	}catch(IndexOutOfBoundsException e){
-	    
-	}
-	
-    }//end paintComponent()
-
+    
 }//end class
 
 class IntegerList extends ArrayList<Integer>{}
