@@ -12,9 +12,6 @@ public class Simulation{
 
     static final int MAX_NODE = 80000;
 
-    //Including Origin Source
-    //static final int PAIRS_NUM = ( MAX_NODE * (MAX_NODE + 1) )/2;
-
     //1~200 The Bound of the BW
     static final int BOUND = 199;
 
@@ -65,7 +62,7 @@ public class Simulation{
     static final double CACHE_RATE_TLV = 0.99d;
 
     //The Bound of the time to join ( 0~10 min )
-    static final int BOUND_TIME_JOIN = 1000 * 60;
+    static final int BOUND_TIME_JOIN = 1000 * 900;
 
     static final long PROCESS_INTERVAL = 10L;
 
@@ -84,21 +81,21 @@ public class Simulation{
 	sim.osInitialize();
 	sim.nodesInitialize();
 	
-	//sim.TIMESTAMP = System.currentTimeMillis();
+	sim.TIMESTAMP = System.currentTimeMillis();
 	while(true){
 	    
-	    long dt_ms = sim.PROCESS_INTERVAL;
+	    //long dt_ms = sim.PROCESS_INTERVAL;
 
-	    //if( sim.PRE_TIMESTAMP != sim.TIMESTAMP ){
+	    if( sim.PRE_TIMESTAMP != sim.TIMESTAMP ){
 		
-	    //long dt_ms = sim.TIMESTAMP - sim.PRE_TIMESTAMP;
-	    sim.nodeParticipation( dt_ms );
-	    sim.nodeReconnect( dt_ms );
-	    sim.nodeStreaming( dt_ms );
+		long dt_ms = sim.TIMESTAMP - sim.PRE_TIMESTAMP;
+		sim.nodeParticipation( dt_ms );
+		sim.nodeReconnect( dt_ms );
+		sim.nodeStreaming( dt_ms );
 		
-		//}
+	    }
 	    
-	    sim.timestampUpdate( dt_ms );
+	    sim.timestampUpdate();
 	    
 	}
 	
@@ -195,17 +192,17 @@ public class Simulation{
     }
 
 
-    public void timestampUpdate( long dt_ms ){
+    public void timestampUpdate(){
 
-	//PRE_TIMESTAMP = TIMESTAMP;
-	//TIMESTAMP = System.currentTimeMillis(); 
+	PRE_TIMESTAMP = TIMESTAMP;
+	TIMESTAMP = System.currentTimeMillis(); 
 
 	//Timestamp have not been changed
-	//if( PRE_TIMESTAMP == TIMESTAMP )
-	//    return;
+	if( PRE_TIMESTAMP == TIMESTAMP )
+	    return;
 
-	//CURRENT_TIME += TIMESTAMP - PRE_TIMESTAMP; 
-	CURRENT_TIME += dt_ms;
+	CURRENT_TIME += TIMESTAMP - PRE_TIMESTAMP; 
+	//CURRENT_TIME += dt_ms;
 
 	if( CURRENT_TIME > BOUND_TIME_JOIN )
 	    System.out.println("Time:"+CURRENT_TIME+"ms "+CURRENT_TIME/1000+"s");
