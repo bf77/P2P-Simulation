@@ -1,4 +1,4 @@
-# P2P Simulation
+# Draw simulation of p2p
 
 ### Install
 
